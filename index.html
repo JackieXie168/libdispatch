@@ -27,9 +27,7 @@
         </ul>
       </header>
       <section>
-        <h1>libdispatch for Linux</h1>
-
-<p>Pthreads getting you down? <a href="http://libdispatch.macosforge.org">libdispatch</a>, aka Grand Central Dispatch (GCD) is Apple's high-performance event-handling library, introduced in OS X Snow Leopard. It provides asynchronous task queues, monitoring of file descriptor read and write-ability, asynchronous I/O (for sockets <em>and</em> regular files), readers-writer locks, parallel for-loops, sane signal handling, periodic timers, semaphores and more. You'll want to read over Apple's <a href="http://developer.apple.com/library/ios/#documentation/Performance/Reference/GCD_libdispatch_Ref/Reference/reference.html">API reference</a>.</p>
+        <p>Pthreads getting you down? <a href="http://libdispatch.macosforge.org">libdispatch</a>, aka Grand Central Dispatch (GCD) is Apple's high-performance event-handling library, introduced in OS X Snow Leopard. It provides asynchronous task queues, monitoring of file descriptor read and write-ability, asynchronous I/O (for sockets <em>and</em> regular files), readers-writer locks, parallel for-loops, sane signal handling, periodic timers, semaphores and more. You'll want to read over Apple's <a href="http://developer.apple.com/library/ios/#documentation/Performance/Reference/GCD_libdispatch_Ref/Reference/reference.html">API reference</a>.</p>
 
 <p>Currently, the trunk of the <a href="http://libdispatch.macosforge.org/trac/browser">official SVN repository</a> doesn't build on Linux; the last revision that builds out-of-the-box is <code>r199</code>, but that revision doesn't contain any of the nifty APIs added in OS X Lion, e.g. asynchronous I/O. This repo applies some patches by Mark Heily, taken from <a href="http://lists.macosforge.org/pipermail/libdispatch-dev/2012-August/000676.html">his post to the libdispatch mailing list</a>, along with some other fixes that I've cobbled together. It has not been exhaustively tested, but it seems to work well enough.</p>
 
@@ -77,14 +75,20 @@ sudo ldconfig
 #include &lt;dispatch/dispatch.h&gt;
 #include &lt;stdio.h&gt;
 
-static void timer_did_fire(void *context) { printf("Strawberry fields...\n"); }
+static void timer_did_fire(void *context) {
+    printf("Strawberry fields...\n");
+}
 
-static void write_completion_handler(dispatch_data_t unwritten_data, int error, void *context) {
+static void write_completion_handler(dispatch_data_t unwritten_data,
+                                     int error,
+                                     void *context) {
     if (!unwritten_data &amp;&amp; error == 0)
        printf("Dispatch I/O wrote everything to stdout. Hurrah.\n");
 }
 
-static void read_completion_handler(dispatch_data_t data, int error, void *context) {
+static void read_completion_handler(dispatch_data_t data,
+                                    int error,
+                                    void *context) {
     int fd = (intptr_t)context;
     close(fd);
 
@@ -121,6 +125,16 @@ clang dispatch_test.c -I/usr/local/include -L/usr/local/lib -ldispatch -o dispat
       <p>Hosted on GitHub Pages &mdash; Theme by <a href="https://github.com/orderedlist">orderedlist</a></p>
     </footer>
     <!--[if !IE]><script>fixScale(document);</script><![endif]-->
-    
+              <script type="text/javascript">
+            var gaJsHost = (("https:" == document.location.protocol) ? "https://ssl." : "http://www.");
+            document.write(unescape("%3Cscript src='" + gaJsHost + "google-analytics.com/ga.js' type='text/javascript'%3E%3C/script%3E"));
+          </script>
+          <script type="text/javascript">
+            try {
+              var pageTracker = _gat._getTracker("UA-36058538-1");
+            pageTracker._trackPageview();
+            } catch(err) {}
+          </script>
+
   </body>
 </html>
