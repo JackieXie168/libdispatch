@@ -54,7 +54,8 @@
 <pre><code>sudo apt-get install libblocksruntime-dev libkqueue-dev libpthread-workqueue-dev
 git clone git://github.com/nickhutchinson/libdispatch.git &amp;&amp; cd libdispatch
 sh autogen.sh
-./configure CFLAGS="-I/usr/include/kqueue" LDFLAGS="-lkqueue -lpthread_workqueue -pthread -lm"
+./configure CFLAGS="-I/usr/include/kqueue" \
+        LDFLAGS="-lkqueue -lpthread_workqueue -pthread -lm"
 make
 sudo make install
 sudo ldconfig
@@ -108,7 +109,7 @@ int main(int argc, const char *argv[]) {
     int fd = open("dispatch_test.c", O_RDONLY);
 
     dispatch_read_f_np(fd, SIZE_MAX, dispatch_get_main_queue(), (void *)(intptr_t)fd,
-                    read_completion_handler);
+                       read_completion_handler);
 
     dispatch_main();
     return 0;
