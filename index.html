@@ -1,0 +1,126 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="chrome=1">
+    <title>Libdispatch for Linux by nickhutchinson</title>
+
+    <link rel="stylesheet" href="stylesheets/styles.css">
+    <link rel="stylesheet" href="stylesheets/pygment_trac.css">
+    <script src="javascripts/scale.fix.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+
+    <!--[if lt IE 9]>
+    <script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script>
+    <![endif]-->
+  </head>
+  <body>
+    <div class="wrapper">
+      <header>
+        <h1>Libdispatch for Linux</h1>
+        <p>Linux port of Apple's open-source concurrency library</p>
+        <p class="view"><a href="https://github.com/nickhutchinson/libdispatch">View the Project on GitHub <small>nickhutchinson/libdispatch</small></a></p>
+        <ul>
+          <li><a href="https://github.com/nickhutchinson/libdispatch/zipball/master">Download <strong>ZIP File</strong></a></li>
+          <li><a href="https://github.com/nickhutchinson/libdispatch/tarball/master">Download <strong>TAR Ball</strong></a></li>
+          <li><a href="https://github.com/nickhutchinson/libdispatch">View On <strong>GitHub</strong></a></li>
+        </ul>
+      </header>
+      <section>
+        <h1>libdispatch for Linux</h1>
+
+<p>Pthreads getting you down? <a href="http://libdispatch.macosforge.org">libdispatch</a>, aka Grand Central Dispatch (GCD) is Apple's high-performance event-handling library, introduced in OS X Snow Leopard. It provides asynchronous task queues, monitoring of file descriptor read and write-ability, asynchronous I/O (for sockets <em>and</em> regular files), readers-writer locks, parallel for-loops, sane signal handling, periodic timers, semaphores and more. You'll want to read over Apple's <a href="http://developer.apple.com/library/ios/#documentation/Performance/Reference/GCD_libdispatch_Ref/Reference/reference.html">API reference</a>.</p>
+
+<p>Currently, the trunk of the <a href="http://libdispatch.macosforge.org/trac/browser">official SVN repository</a> doesn't build on Linux; the last revision that builds out-of-the-box is <code>r199</code>, but that revision doesn't contain any of the nifty APIs added in OS X Lion, e.g. asynchronous I/O. This repo applies some patches by Mark Heily, taken from <a href="http://lists.macosforge.org/pipermail/libdispatch-dev/2012-August/000676.html">his post to the libdispatch mailing list</a>, along with some other fixes that I've cobbled together. It has not been exhaustively tested, but it seems to work well enough.</p>
+
+<p>Patches are very welcome; I'm not terribly familiar with Linux.</p>
+
+<h3>Changes from Apple's official version</h3>
+
+<p>I've added the ability to integrate libdispatch's main queue with third-party run-loops, e.g. GLib's <code>GMainLoop</code>. Call <code>dispatch_get_main_queue_eventfd_np()</code> to get a file descriptor your run-loop can monitor for reading; when it becomes readable, call <code>eventfd_read(2)</code> to acknowledge the wakeup, then call <code>dispatch_main_queue_drain_np()</code> to execute the pending tasks.</p>
+
+<p>I've also added missing <code>_f</code> variants for several functions in <code>data.h</code> and <code>io.h</code> that took <a href="http://developer.apple.com/library/ios/#documentation/cocoa/Conceptual/Blocks/Articles/00_Introduction.html">Objective-C blocks</a> only: look for the functions with <code>_np</code> appended to them. Although you can make full use of libdispatch with compilers like GCC that don't support blocks, libdispatch itself must be built with Clang, as it makes use of blocks internally.</p>
+
+<h2>Prerequisities</h2>
+
+<ul>
+<li><a href="http://mark.heily.com/project/libblocksruntime">libBlocksRuntime</a></li>
+<li><a href="http://mark.heily.com/project/libpthread_workqueue">libpthread_workqueue</a></li>
+<li><a href="http://mark.heily.com/project/libkqueue">libkqueue</a></li>
+<li>Clang</li>
+<li>automake/autoconf/libtool</li>
+</ul><h2>How to build</h2>
+
+<p>The following does the job on Ubuntu 12.04:</p>
+
+<pre><code>sudo apt-get install libblocksruntime-dev libkqueue-dev libpthread-workqueue-dev
+git clone git://github.com/nickhutchinson/libdispatch.git &amp;&amp; cd libdispatch
+sh autogen.sh
+./configure CFLAGS="-I/usr/include/kqueue" LDFLAGS="-lkqueue -lpthread_workqueue -pthread -lm"
+make
+sudo make install
+sudo ldconfig
+</code></pre>
+
+<h2>Testing</h2>
+
+<p>The included test suite builds and runs on Linux (just run <code>make check</code>). Last I checked, a few tests failed:</p>
+
+<ul>
+<li>dispatch_starfish</li>
+<li>dispatch_vnode</li>
+</ul><p>Test failure results are <a href="https://gist.github.com/3903724">here</a>. The dispatch_starfish failure can probably be ignored, but the dispatch_vnode failure seems to indicate some more serious issue, possibly a bug in libkqueue. It might be best to avoid using <code>dispatch_source_create()</code> with <code>DISPATCH_SOURCE_TYPE_VNODE</code> for now...</p>
+
+<h2>Demo</h2>
+
+<pre><code>cat &lt;&lt; "EOF" &gt; dispatch_test.c
+#include &lt;dispatch/dispatch.h&gt;
+#include &lt;stdio.h&gt;
+
+static void timer_did_fire(void *context) { printf("Strawberry fields...\n"); }
+
+static void write_completion_handler(dispatch_data_t unwritten_data, int error, void *context) {
+    if (!unwritten_data &amp;&amp; error == 0)
+       printf("Dispatch I/O wrote everything to stdout. Hurrah.\n");
+}
+
+static void read_completion_handler(dispatch_data_t data, int error, void *context) {
+    int fd = (intptr_t)context;
+    close(fd);
+
+    dispatch_write_f_np(STDOUT_FILENO, data, dispatch_get_main_queue(),
+                        NULL, write_completion_handler);
+}
+
+int main(int argc, const char *argv[]) {
+    dispatch_source_t timer = dispatch_source_create(
+        DISPATCH_SOURCE_TYPE_TIMER, 0, 0, dispatch_get_main_queue());
+
+    dispatch_source_set_event_handler_f(timer, timer_did_fire);
+    dispatch_source_set_timer(timer, DISPATCH_TIME_NOW, 1 * NSEC_PER_SEC,
+                              0.5 * NSEC_PER_SEC);
+    dispatch_resume(timer);
+
+    int fd = open("dispatch_test.c", O_RDONLY);
+
+    dispatch_read_f_np(fd, SIZE_MAX, dispatch_get_main_queue(), (void *)(intptr_t)fd,
+                    read_completion_handler);
+
+    dispatch_main();
+    return 0;
+}
+EOF
+
+clang dispatch_test.c -I/usr/local/include -L/usr/local/lib -ldispatch -o dispatchTest
+./dispatchTest
+</code></pre>
+      </section>
+    </div>
+    <footer>
+      <p>Project maintained by <a href="https://github.com/nickhutchinson">nickhutchinson</a></p>
+      <p>Hosted on GitHub Pages &mdash; Theme by <a href="https://github.com/orderedlist">orderedlist</a></p>
+    </footer>
+    <!--[if !IE]><script>fixScale(document);</script><![endif]-->
+    
+  </body>
+</html>
