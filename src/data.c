@@ -52,9 +52,11 @@ const dispatch_block_t _dispatch_data_destructor_none = ^{
 	DISPATCH_CRASH("none destructor called");
 };
 
+#ifdef __APPLE__
 const dispatch_block_t _dispatch_data_destructor_vm_deallocate = ^{
 	DISPATCH_CRASH("vmdeallocate destructor called");
 };
+#endif
 
 struct dispatch_data_s _dispatch_data_empty = {
 	.do_vtable = DISPATCH_VTABLE(data),
@@ -83,8 +85,10 @@ _dispatch_data_destroy_buffer(const void* buffer, size_t size,
 		free((void*)buffer);
 	} else if (destructor == DISPATCH_DATA_DESTRUCTOR_NONE) {
 		// do nothing
+#ifdef __APPLE__
 	} else if (destructor == DISPATCH_DATA_DESTRUCTOR_VM_DEALLOCATE) {
 		vm_deallocate(mach_task_self(), (vm_address_t)buffer, size);
+#endif
 	} else {
 		if (!queue) {
 			queue = dispatch_get_global_queue(

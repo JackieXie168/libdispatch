@@ -25,10 +25,13 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <signal.h>
+#if HAVE_MACH
 #include <mach/clock_types.h>
 #include <mach-o/arch.h>
+#endif
 #include <sys/resource.h>
 #include <sys/time.h>
+#include <sys/wait.h>
 
 #include <bsdtests.h>
 
@@ -46,7 +49,9 @@ main(int argc, char *argv[])
 		exit(1);
 	}
 
+#if HAVE_DECL_POSIX_SPAWN_START_SUSPENDED
 	short spawnflags = POSIX_SPAWN_START_SUSPENDED;
+#endif
 #if TARGET_OS_EMBEDDED
 	spawnflags |= POSIX_SPAWN_SETEXEC;
 #endif
@@ -54,8 +59,10 @@ main(int argc, char *argv[])
 	posix_spawnattr_t attr;
 	res = posix_spawnattr_init(&attr);
 	assert(res == 0);
+#if HAVE_DECL_POSIX_SPAWN_START_SUSPENDED
 	res = posix_spawnattr_setflags(&attr, spawnflags);
 	assert(res == 0);
+#endif
 
 	uint64_t to = 0;
 	char *tos = getenv("BSDTEST_TIMEOUT");
@@ -64,6 +71,7 @@ main(int argc, char *argv[])
 		to *= NSEC_PER_SEC;
 	}
 
+#if __APPLE__
 	char *arch = getenv("BSDTEST_ARCH");
 	if (arch) {
 		const NXArchInfo *ai = NXGetArchInfoFromName(arch);
@@ -72,6 +80,7 @@ main(int argc, char *argv[])
 			assert(res == 0);
 		}
 	}
+#endif
 
 	int i;
 	char** newargv = calloc(argc, sizeof(void*));
@@ -83,9 +92,11 @@ main(int argc, char *argv[])
 	struct timeval tv_start;
 	gettimeofday(&tv_start, NULL);
 
+#if HAVE_POSIX_SPAWN_SETEXEC
 	if (spawnflags & POSIX_SPAWN_SETEXEC) {
 		pid = fork();
 	}
+#endif
 	if (!pid) {
 		res = posix_spawnp(&pid, newargv[0], NULL, &attr, newargv, environ);
 		if (res) {
@@ -149,9 +160,11 @@ main(int argc, char *argv[])
 	});
 	dispatch_resume(tmp_ds);
 
+#if HAVE_POSIX_SPAWN_SETEXEC
 	if (spawnflags & POSIX_SPAWN_SETEXEC) {
 		usleep(USEC_PER_SEC/10);
 	}
+#endif
 	kill(pid, SIGCONT);
 
 	dispatch_main();

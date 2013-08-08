@@ -24,7 +24,12 @@
 #include <unistd.h>
 #include <stdlib.h>
 #include <assert.h>
+#ifdef __APPLE__
 #include <libkern/OSAtomic.h>
+#elif __FreeBSD__
+#include <machine/atomic.h>
+#define	OSAtomicIncrement32(x)	atomic_fetchadd_int(x, 1)
+#endif
 
 #include <bsdtests.h>
 #include "dispatch_test.h"

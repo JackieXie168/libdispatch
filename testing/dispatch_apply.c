@@ -23,7 +23,13 @@
 #include <unistd.h>
 #include <stdlib.h>
 #include <assert.h>
+#ifdef __APPLE__
 #include <libkern/OSAtomic.h>
+#elif __FreeBSD__
+#include <sys/cdefs.h>
+#include <machine/atomic.h>
+#define	OSAtomicIncrement32(x)	atomic_add_int(x, 1)
+#endif
 #include <sys/types.h>
 #include <sys/sysctl.h>
 

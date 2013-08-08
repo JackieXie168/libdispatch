@@ -358,9 +358,11 @@ dispatch_io_create_with_path(dispatch_io_type_t type, const char *path,
 		int err = 0;
 		struct stat st;
 		_dispatch_io_syscall_switch_noerr(err,
-			(path_data->oflag & O_NOFOLLOW) == O_NOFOLLOW ||
-					(path_data->oflag & O_SYMLINK) == O_SYMLINK ?
-					lstat(path_data->path, &st) : stat(path_data->path, &st),
+			(path_data->oflag & O_NOFOLLOW) == O_NOFOLLOW 
+#if HAVE_DECL_O_SYMLINK
+			  || (path_data->oflag & O_SYMLINK) == O_SYMLINK 
+#endif
+			  ? lstat(path_data->path, &st) : stat(path_data->path, &st),
 			case 0:
 				err = _dispatch_io_validate_type(channel, st.st_mode);
 				break;
@@ -1856,21 +1858,35 @@ static void
 _dispatch_operation_advise(dispatch_operation_t op, size_t chunk_size)
 {
 	int err;
+#ifdef __APPLE__
 	struct radvisory advise;
+#elif __FreeBSD__
+	off_t len;
+#endif
 	// No point in issuing a read advise for the next chunk if we are already
 	// a chunk ahead from reading the bytes
 	if (op->advise_offset > (off_t)((op->offset+op->total) + chunk_size +
 			PAGE_SIZE)) {
 		return;
 	}
+#ifdef __APPLE__
 	advise.ra_count = (int)chunk_size;
+#elif __FreeBSD__
+	len = chunk_size;
+#endif
 	if (!op->advise_offset) {
 		op->advise_offset = op->offset;
 		// If this is the first time through, align the advised range to a
 		// page boundary
 		size_t pg_fraction = (size_t)((op->offset + chunk_size) % PAGE_SIZE);
-		advise.ra_count += (int)(pg_fraction ? PAGE_SIZE - pg_fraction : 0);
+#ifdef __APPLE__
+		advise.ra_count +=
+#elif __FreeBSD__
+		len +=
+#endif
+		    (int)(pg_fraction ? PAGE_SIZE - pg_fraction : 0);
 	}
+#ifdef __APPLE__
 	advise.ra_offset = op->advise_offset;
 	op->advise_offset += advise.ra_count;
 	_dispatch_io_syscall_switch(err,
@@ -1878,6 +1894,15 @@ _dispatch_operation_advise(dispatch_operation_t op, size_t chunk_size)
 		// TODO: set disk status on error
 		default: (void)dispatch_assume_zero(err); break;
 	);
+#elif __FreeBSD__
+	op->advise_offset += len;
+	_dispatch_io_syscall_switch(err,
+		posix_fadvise(op->fd_entry->fd, op->advise_offset, len,
+		    POSIX_FADV_WILLNEED),
+		// TODO: set disk status on error
+		default: (void)dispatch_assume_zero(err); break;
+	);
+#endif
 }
 
 static int

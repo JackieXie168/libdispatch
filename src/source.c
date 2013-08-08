@@ -471,11 +471,13 @@ _dispatch_source_kevent_resume(dispatch_source_t ds, uint32_t new_flags)
 	case DISPATCH_EVFILT_TIMER:
 		// called on manager queue only
 		return _dispatch_timer_list_update(ds);
+#ifdef EVFILT_MACHPORT
 	case EVFILT_MACHPORT:
 		if (ds->ds_pending_data_mask & DISPATCH_MACH_RECV_MESSAGE) {
 			new_flags |= DISPATCH_MACH_RECV_MESSAGE; // emulate EV_DISPATCH
 		}
 		break;
+#endif
 	}
 	if (_dispatch_kevent_resume(ds->ds_dkev, new_flags, 0)) {
 		_dispatch_kevent_unregister(ds);

@@ -28,7 +28,6 @@ TESTS=							\
 	dispatch_apply				\
 	dispatch_api				\
 	dispatch_c99				\
-	dispatch_deadname			\
 	dispatch_debug				\
 	dispatch_queue_finalizer	\
 	dispatch_group				\
@@ -44,23 +43,26 @@ TESTS=							\
 	dispatch_read2				\
 	dispatch_after				\
 	dispatch_timer				\
-	dispatch_timer_short		\
 	dispatch_timer_timeout		\
 	dispatch_sema				\
 	dispatch_suspend_timer		\
 	dispatch_timer_bit31		\
 	dispatch_timer_bit63		\
 	dispatch_timer_set_time		\
-	dispatch_starfish			\
 	dispatch_cascade			\
 	dispatch_drift				\
 	dispatch_readsync			\
 	dispatch_data				\
-	dispatch_io					\
 	dispatch_io_net				\
 	dispatch_vm					\
 	dispatch_vnode				\
 	dispatch_select
+if USE_MIG
+TESTS+=	dispatch_deadname		\
+	dispatch_timer_short		\
+	dispatch_starfish		\
+	dispatch_io
+endif
 
 dispatch_c99_CFLAGS=$(AM_CFLAGS) -std=c99
 dispatch_plusplus_SOURCES=dispatch_plusplus.cpp
@@ -73,7 +75,7 @@ AM_CFLAGS=-Wall $(MARCH_FLAGS) $(CBLOCKS_FLAGS)
 AM_OBJCFLAGS=-Wall $(MARCH_FLAGS) $(CBLOCKS_FLAGS) -fobjc-gc
 AM_CXXFLAGS=-Wall $(MARCH_FLAGS) $(CXXBLOCKS_FLAGS)
 
-LDADD=libbsdtests.la ../src/libdispatch.la
+LDADD=libbsdtests.la ../src/libdispatch.la -lm
 libbsdtests_la_LDFLAGS=-avoid-version
 
 TESTS_ENVIRONMENT=./bsdtestharness

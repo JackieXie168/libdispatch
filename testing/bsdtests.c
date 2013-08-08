@@ -24,9 +24,14 @@
 #include <unistd.h>
 #include <errno.h>
 #include <sys/errno.h>
+#include <sys/wait.h>
 #include <string.h>
+#if HAVE_FOUNDATION
 #include <crt_externs.h>
+#endif
+#if HAVE_MACH
 #include <mach/mach_error.h>
+#endif
 #include <spawn.h>
 #include <inttypes.h>
 #include "bsdtests.h"
@@ -308,6 +313,7 @@ test_errno_format(long actual, long expected, const char *format, ...)
 	_test_errno(NULL, 0, desc, actual, expected);
 }
 
+#if HAVE_MACH
 void
 _test_mach_error(const char* file, long line, const char* desc,
 		mach_error_t actual, mach_error_t expected)
@@ -328,6 +334,7 @@ test_mach_error_format(mach_error_t actual, mach_error_t expected, const char *f
 	GENERATE_DESC
 	_test_mach_error(NULL, 0, desc, actual, expected);
 }
+#endif
 
 void
 _test_skip(const char* file, long line, const char* desc)
@@ -400,6 +407,7 @@ test_start(const char* desc)
 	usleep(100000);	// give 'gdb --waitfor=' a chance to find this proc
 }
 
+#if HAVE_LEAKS
 void
 test_leaks_pid(const char *name, pid_t pid)
 {
@@ -450,6 +458,7 @@ test_leaks(const char *name)
 {
 	test_leaks_pid(name, getpid());
 }
+#endif
 
 void
 test_stop_after_delay(void *delay)
@@ -458,7 +467,9 @@ test_stop_after_delay(void *delay)
 		sleep((int)(intptr_t)delay);
 	}
 
+#if HAVE_LEAKS
 	test_leaks(NULL);
+#endif
 
 	fflush(stdout);
 	_exit(_test_exit_code);

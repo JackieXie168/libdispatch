@@ -22,6 +22,9 @@
 #include <fcntl.h>
 #include <stdlib.h>
 #include <unistd.h>
+#ifdef __FreeBSD__
+#define	O_EVTONLY O_RDONLY
+#endif
 
 #include <dispatch/dispatch.h>
 

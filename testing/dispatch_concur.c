@@ -25,6 +25,10 @@
 #include <stdio.h>
 #include <sys/types.h>
 #include <sys/sysctl.h>
+#include <sys/limits.h>
+#ifdef __FreeBSD__
+#include <sys/param.h>		/* for MIN() */
+#endif
 
 #include <bsdtests.h>
 #include "dispatch_test.h"

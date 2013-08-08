@@ -30,8 +30,10 @@
 #include <fcntl.h>
 #include <sys/stat.h>
 #include <spawn.h>
+#ifdef __APPLE__
 #include <crt_externs.h>
 #include <mach-o/dyld.h>
+#endif
 #include <Block.h>
 #include <bsdtests.h>
 #include "dispatch_test.h"
@@ -91,10 +93,12 @@ main(int argc, char** argv)
 			test_errno("client-open", errno, 0);
 			test_stop();
 		}
+#ifdef __APPLE__
 		if (fcntl(fd, F_NOCACHE, 1)) {
 			test_errno("client-fcntl F_NOCACHE", errno, 0);
 			test_stop();
 		}
+#endif
 		struct stat sb;
 		if (fstat(fd, &sb)) {
 			test_errno("client-fstat", errno, 0);
@@ -192,10 +196,14 @@ main(int argc, char** argv)
 		char exec_filename [256] = {};
 		uint32_t bufsize = 256;
 
+#ifdef __APPLE__
 		if (_NSGetExecutablePath(exec_filename, &bufsize) == -1) {
 			fprintf(stderr, "Failed to get path name for running executable\n");
 			test_stop();
 		}
+#else
+		strlcpy(exec_filename, argv[0], sizeof(exec_filename));
+#endif
 
 		char port_str[10] = {};
 		snprintf(port_str, 10, " %d", addr1.sin_port);
@@ -225,10 +233,12 @@ main(int argc, char** argv)
 			test_errno("open", errno, 0);
 			goto stop_test;
 		}
+#ifdef __APPLE__
 		if (fcntl(read_fd, F_NOCACHE, 1)) {
 			test_errno("fcntl F_NOCACHE", errno, 0);
 			goto stop_test;
 		}
+#endif
 		struct stat sb;
 		if (fstat(read_fd, &sb)) {
 			test_errno("fstat", errno, 0);

@@ -24,9 +24,12 @@
 #include <unistd.h>
 #include <stdlib.h>
 #include <assert.h>
+#if HAVE_TARGETCONDITIONALS
 #include <TargetConditionals.h>
+#endif
 #include <sys/types.h>
 #include <sys/sysctl.h>
+#include <sys/limits.h>
 
 #include <bsdtests.h>
 #include "dispatch_test.h"

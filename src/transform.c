@@ -20,7 +20,17 @@
 
 #include "internal.h"
 
+#ifdef __APPLE__
 #include <libkern/OSByteOrder.h>
+#elif __FreeBSD__
+#include <sys/endian.h>
+#define	OSLittleEndian 			_LITTLE_ENDIAN
+#define	OSBigEndian 			_BIG_ENDIAN
+#define	OSSwapLittleToHostInt16		le16toh
+#define	OSSwapBigToHostInt16		be16toh
+#define	OSSwapHostToLittleInt16		htole16
+#define	OSSwapHostToBigInt16		htobe16
+#endif
 
 #if defined(__LITTLE_ENDIAN__)
 #define DISPATCH_DATA_FORMAT_TYPE_UTF16_HOST DISPATCH_DATA_FORMAT_TYPE_UTF16LE

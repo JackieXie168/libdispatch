@@ -19,9 +19,12 @@
  */
 
 #include <stdio.h>
+#include <stdlib.h>
 
 #include <dispatch/dispatch.h>
+#if HAVE_TARGETCONDITIONALS
 #include <TargetConditionals.h>
+#endif
 
 #include <bsdtests.h>
 #include "dispatch_test.h"

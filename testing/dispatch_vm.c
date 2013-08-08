@@ -18,11 +18,17 @@
  * @APPLE_APACHE_LICENSE_HEADER_END@
  */
 
+#include <sys/types.h>
 #include <sys/event.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
+#ifdef __APPLE__
 #include <libkern/OSAtomic.h>
+#elif __FreeBSD__
+#include <machine/atomic.h>
+#define	OSAtomicIncrement32Barrier(x)	atomic_add_barr_int(x, 1)
+#endif
 #include <assert.h>
 #include <sys/sysctl.h>
 #include <stdarg.h>

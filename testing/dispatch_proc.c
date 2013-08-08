@@ -25,7 +25,7 @@
 #include <assert.h>
 #include <spawn.h>
 #include <signal.h>
-#include <libkern/OSAtomic.h>
+#include <sys/wait.h>
 
 #include <bsdtests.h>
 #include "dispatch_test.h"
@@ -48,8 +48,10 @@ test_proc(pid_t bad_pid)
 	posix_spawnattr_t attr;
 	res = posix_spawnattr_init(&attr);
 	assert(res == 0);
+#if HAVE_DECL_POSIX_SPAWN_START_SUSPENDED
 	res = posix_spawnattr_setflags(&attr, POSIX_SPAWN_START_SUSPENDED);
 	assert(res == 0);
+#endif
 
 	char* args[] = {
 		"/bin/sleep", "2", NULL

@@ -1445,7 +1445,11 @@ _dispatch_barrier_sync_f_pop(dispatch_queue_t dq, dispatch_object_t dou,
 		// returns
 		(void)dispatch_atomic_add2o(dbss2->dbss2_dq, dq_running, 2);
 	}
+#if USE_MACH_SEM
 	return dbss2->dbss2_sema ? dbss2->dbss2_sema : MACH_PORT_DEAD;
+#elif USE_POSIX_SEM
+	return dbss2->dbss2_sema ? dbss2->dbss2_sema : SEM_FAILED;
+#endif
 }
 
 static void

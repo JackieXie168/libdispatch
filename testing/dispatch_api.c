@@ -19,6 +19,7 @@
  */
 
 #include <stdlib.h>
+#include <sys/types.h>
 
 #include <bsdtests.h>
 #include "dispatch_test.h"

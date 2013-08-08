@@ -24,7 +24,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <assert.h>
-#include <libkern/OSAtomic.h>
+#include <math.h>
 
 #include <bsdtests.h>
 #include "dispatch_test.h"

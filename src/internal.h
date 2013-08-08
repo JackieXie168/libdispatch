@@ -205,8 +205,10 @@ DISPATCH_NOINLINE
 void _dispatch_bug(size_t line, long val);
 DISPATCH_NOINLINE
 void _dispatch_bug_client(const char* msg);
+#if HAVE_MACH
 DISPATCH_NOINLINE
 void _dispatch_bug_mach_client(const char *msg, mach_msg_return_t kr);
+#endif
 DISPATCH_NOINLINE DISPATCH_NORETURN
 void _dispatch_abort(size_t line, long val);
 DISPATCH_NOINLINE __attribute__((__format__(__printf__,1,2)))

@@ -28,10 +28,6 @@
 #include <unistd.h>
 #include <errno.h>
 #include <fts.h>
-#include <mach/mach.h>
-#include <mach/mach_time.h>
-#include <libkern/OSAtomic.h>
-#include <TargetConditionals.h>
 #include <Block.h>
 
 #include <dispatch/dispatch.h>
@@ -122,10 +118,12 @@ test_read(void)
 		test_errno("open", errno, 0);
 		test_stop();
 	}
+#ifdef __APPLE__
 	if (fcntl(fd, F_NOCACHE, 1)) {
 		test_errno("fcntl F_NOCACHE", errno, 0);
 		test_stop();
 	}
+#endif
 	struct stat sb;
 	if (fstat(fd, &sb)) {
 		test_errno("fstat", errno, 0);

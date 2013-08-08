@@ -23,7 +23,6 @@
 #include <unistd.h>
 #include <stdlib.h>
 #include <assert.h>
-#include <libkern/OSAtomic.h>
 
 #include <bsdtests.h>
 #include <Block.h>

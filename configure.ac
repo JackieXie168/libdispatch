@@ -211,6 +211,7 @@ AC_CHECK_DECLS([CLOCK_UPTIME, CLOCK_MONOTONIC], [], [],
 AC_CHECK_DECLS([NOTE_NONE, NOTE_REAP, NOTE_SIGNAL], [], [],
   [[#include <sys/event.h>]])
 AC_CHECK_DECLS([FD_COPY], [], [], [[#include <sys/select.h>]])
+AC_CHECK_DECLS([O_SYMLINK], [], [], [[#include <sys/fcntl.h>]])
 AC_CHECK_DECLS([SIGEMT], [], [], [[#include <signal.h>]])
 AC_CHECK_DECLS([VQ_UPDATE, VQ_VERYLOWDISK], [], [], [[#include <sys/mount.h>]])
 AC_CHECK_DECLS([program_invocation_short_name], [], [], [[#include <errno.h>]])
@@ -221,6 +222,12 @@ AC_CHECK_DECLS([POSIX_SPAWN_START_SUSPENDED],
   [[#include <sys/spawn.h>]]
 )
 AM_CONDITIONAL(HAVE_POSIX_SPAWN_START_SUSPENDED, $have_posix_spawn_start_suspended)
+
+AC_CHECK_DECLS([POSIX_SPAWN_SETEXEC],
+  [have_posix_spawn_setexec=true], [have_posix_spawn_setexec=false],
+  [[#include <sys/spawn.h>]]
+)
+AM_CONDITIONAL(HAVE_POSIX_SPAWN_SETEXEC, $have_posix_spawn_setexec)
 
 AC_CHECK_FUNC([sem_init],
   [have_sem_init=true], [have_sem_init=false]
@@ -275,10 +282,13 @@ AC_SUBST([OMIT_LEAF_FP_FLAGS])
 
 AC_CACHE_CHECK([for darwin linker], [dispatch_cv_ld_darwin], [
   saveLDFLAGS="$LDFLAGS"
+  savedCFLAGS="$CFLAGS"
+  CFLAGS="$CFLAGS -Wl,-compatibility_version,1"
   LDFLAGS="$LDFLAGS -dynamiclib -compatibility_version 1.2.3 -current_version 4.5.6 -dead_strip"
   AC_LINK_IFELSE([AC_LANG_PROGRAM([
     extern int foo; int foo;], [foo = 0;])],
     [dispatch_cv_ld_darwin="yes"], [dispatch_cv_ld_darwin="no"])
+  CFLAGS="$savedCFLAGS"
   LDFLAGS="$saveLDFLAGS"
 ])
 AM_CONDITIONAL(HAVE_DARWIN_LD, [test "x$dispatch_cv_ld_darwin" != "xno"])

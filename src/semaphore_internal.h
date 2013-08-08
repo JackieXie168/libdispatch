@@ -63,7 +63,11 @@ void _dispatch_semaphore_dispose(dispatch_object_t dou);
 size_t _dispatch_semaphore_debug(dispatch_object_t dou, char *buf,
 		size_t bufsiz);
 
+#if USE_POSIX_SEM
+typedef sem_t * _dispatch_thread_semaphore_t;
+#else
 typedef uintptr_t _dispatch_thread_semaphore_t;
+#endif
 _dispatch_thread_semaphore_t _dispatch_get_thread_semaphore(void);
 void _dispatch_put_thread_semaphore(_dispatch_thread_semaphore_t);
 void _dispatch_thread_semaphore_wait(_dispatch_thread_semaphore_t);
