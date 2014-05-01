@@ -2,4 +2,4 @@ language: c
 compiler:
     - clang
     - gcc
-script: sh autogen.sh && make
+script: sh autogen.sh && ./configure && make
