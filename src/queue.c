@@ -3111,18 +3111,6 @@ dispatch_main_queue_drain_np()
 #endif  // TARGET_OS_LINUX
 #endif // DISPATCH_COCOA_COMPAT || TARGET_OS_LINUX
 
-void
-dispatch_main(void)
-{
-	if (pthread_main_np()) {
-		_dispatch_object_debug(&_dispatch_main_q, "%s", __func__);
-		_dispatch_program_is_probably_callback_driven = true;
-		pthread_exit(NULL);
-		DISPATCH_CRASH("pthread_exit() returned");
-	}
-	DISPATCH_CLIENT_CRASH("dispatch_main() must be called on the main thread");
-}
-
 DISPATCH_NOINLINE DISPATCH_NORETURN
 static void
 _dispatch_sigsuspend(void)
@@ -3142,6 +3130,23 @@ _dispatch_sig_thread(void *ctxt DISPATCH_UNUSED)
 	// never returns, so burn bridges behind us
 	_dispatch_clear_stack(0);
 	_dispatch_sigsuspend();
+}
+
+void
+dispatch_main(void)
+{
+	if (pthread_main_np()) {
+		_dispatch_object_debug(&_dispatch_main_q, "%s", __func__);
+		_dispatch_program_is_probably_callback_driven = true;
+#if __has_feature(address_sanitizer)
+		_dispatch_queue_cleanup(&_dispatch_main_q);
+		_dispatch_sigsuspend();
+#else
+		pthread_exit(NULL);
+#endif
+		DISPATCH_CRASH("pthread_exit() returned");
+	}
+	DISPATCH_CLIENT_CRASH("dispatch_main() must be called on the main thread");
 }
 
 DISPATCH_NOINLINE
