@@ -161,27 +161,25 @@ _dispatch_timeout_ts(dispatch_time_t when)
 	if (when == 0) {
 		ret = clock_gettime(CLOCK_REALTIME, &ts_realtime);
 		(void)dispatch_assume_zero(ret);
-		return (ts_realtime);
+		return ts_realtime;
 	}
 	if ((int64_t)when < 0) {
-		when = -(int64_t)when;
+		when = (uint64_t)-(int64_t)when;
 		ts_realtime.tv_sec = when / NSEC_PER_SEC;
 		ts_realtime.tv_nsec = when % NSEC_PER_SEC;
-		return (ts_realtime);
+		return ts_realtime;
 	}
 
 	/*
 	 * Rebase 'when': (when - abstime) + realtime.
-	 *
-	 * XXXRW: Should we cache this delta to avoid system calls?
 	 */
 	abstime = _dispatch_absolute_time();
 	ret = clock_gettime(CLOCK_REALTIME, &ts_realtime);
 	(void)dispatch_assume_zero(ret);
-	realtime = ts_realtime.tv_sec * NSEC_PER_SEC + ts_realtime.tv_nsec +
-	    (when - abstime);
+	realtime = (uint64_t)ts_realtime.tv_sec * NSEC_PER_SEC +
+			   (uint64_t)ts_realtime.tv_nsec + (when - abstime);
 	ts_realtime.tv_sec = realtime / NSEC_PER_SEC;
 	ts_realtime.tv_nsec = realtime % NSEC_PER_SEC;
-	return (ts_realtime);
+	return ts_realtime;
 }
 #endif

@@ -1244,7 +1244,7 @@ _dispatch_queue_debug_attr(dispatch_queue_t dq, char* buf, size_t bufsiz)
 			dq->dq_running / 2, dq->dq_running & 1);
 	if (dq->dq_is_thread_bound) {
 		offset += dsnprintf(buf, bufsiz, ", thread = %p ",
-				_dispatch_queue_get_bound_thread(dq));
+							(void *)_dispatch_queue_get_bound_thread(dq));
 	}
 	return offset;
 }
@@ -1733,7 +1733,7 @@ _dispatch_barrier_sync_f_slow_invoke(void *ctxt)
 
 	dispatch_assert(dq == _dispatch_queue_get_current());
 #if DISPATCH_COCOA_COMPAT || TARGET_OS_LINUX
-	if (slowpath(dq->dq_is_thread_bound)) {
+	if (slowpath((bool)dq->dq_is_thread_bound)) {
 		// The queue is bound to a non-dispatch thread (e.g. main thread)
 		_dispatch_client_callout(dc->dc_ctxt, dc->dc_func);
 		dispatch_atomic_store2o(dc, dc_func, NULL, release);

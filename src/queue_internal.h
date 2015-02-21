@@ -350,7 +350,7 @@ static inline void
 _dispatch_queue_set_bound_thread(dispatch_queue_t dq)
 {
 	//Tag thread-bound queues with the owning thread
-	dispatch_assert(dq->dq_is_thread_bound);
+	dispatch_assert((bool)dq->dq_is_thread_bound);
 	dq->do_finalizer = (void*)_dispatch_thread_self();
 }
 
@@ -358,7 +358,7 @@ DISPATCH_ALWAYS_INLINE
 static inline void
 _dispatch_queue_clear_bound_thread(dispatch_queue_t dq)
 {
-	dispatch_assert(dq->dq_is_thread_bound);
+	dispatch_assert((bool)dq->dq_is_thread_bound);
 	dq->do_finalizer = NULL;
 }
 
@@ -366,7 +366,7 @@ DISPATCH_ALWAYS_INLINE
 static inline pthread_t
 _dispatch_queue_get_bound_thread(dispatch_queue_t dq)
 {
-	dispatch_assert(dq->dq_is_thread_bound);
+	dispatch_assert((bool)dq->dq_is_thread_bound);
 	return (pthread_t)dq->do_finalizer;
 }
 

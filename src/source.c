@@ -541,7 +541,7 @@ _dispatch_source_kevent_resume(dispatch_source_t ds, uint32_t new_flags)
 static void
 _dispatch_source_kevent_register(dispatch_source_t ds)
 {
-	dispatch_assert_zero(ds->ds_is_installed);
+	dispatch_assert_zero((bool)ds->ds_is_installed);
 	switch (ds->ds_dkev->dk_kevent.filter) {
 	case DISPATCH_EVFILT_TIMER:
 		return _dispatch_timers_update(ds);
@@ -769,6 +769,7 @@ _dispatch_kevent_hash(uint64_t ident, short filter)
 			filter == DISPATCH_EVFILT_MACH_NOTIFICATION ?
 			MACH_PORT_INDEX(ident) : ident);
 #else
+	(void)filter;
 	value = ident;
 #endif
 	return DSL_HASH((uintptr_t)value);
@@ -834,6 +835,10 @@ static bool
 _dispatch_kevent_resume(dispatch_kevent_t dk, uint32_t new_flags,
 		uint32_t del_flags)
 {
+#if !HAVE_MACH
+	(void)new_flags;
+	(void)del_flags;
+#endif
 	long r;
 	switch (dk->dk_kevent.filter) {
 	case DISPATCH_EVFILT_TIMER:
@@ -1133,6 +1138,8 @@ _dispatch_source_timer_now(uint64_t nows[], unsigned int tidx)
 	case DISPATCH_TIMER_KIND_WALL:
 		now = _dispatch_get_nanoseconds();
 		break;
+	default:
+		DISPATCH_CRASH();
 	}
 	if (nows) {
 		nows[tk] = now;
@@ -1335,7 +1342,7 @@ typedef struct dispatch_timer_s {
 		DISPATCH_TIMER_INITIALIZER(DISPATCH_TIMER_INDEX( \
 		DISPATCH_TIMER_KIND_##kind, DISPATCH_TIMER_QOS_##qos))
 
-struct dispatch_timer_s _dispatch_timer[] =  {
+static struct dispatch_timer_s _dispatch_timer[] =  {
 	DISPATCH_TIMER_INIT(WALL, NORMAL),
 	DISPATCH_TIMER_INIT(WALL, CRITICAL),
 	DISPATCH_TIMER_INIT(WALL, BACKGROUND),
@@ -1370,7 +1377,7 @@ struct dispatch_timer_s _dispatch_timer[] =  {
 		DISPATCH_KEVENT_TIMER_INITIALIZER(DISPATCH_TIMER_INDEX( \
 		DISPATCH_TIMER_KIND_##kind, DISPATCH_TIMER_QOS_##qos))
 
-struct dispatch_kevent_s _dispatch_kevent_timer[] = {
+static struct dispatch_kevent_s _dispatch_kevent_timer[] = {
 	DISPATCH_KEVENT_TIMER_INIT(WALL, NORMAL),
 	DISPATCH_KEVENT_TIMER_INIT(WALL, CRITICAL),
 	DISPATCH_KEVENT_TIMER_INIT(WALL, BACKGROUND),
@@ -1395,7 +1402,7 @@ struct dispatch_kevent_s _dispatch_kevent_timer[] = {
 #define DISPATCH_KEVENT_TIMEOUT_INIT(qos, note) \
 		DISPATCH_KEVENT_TIMEOUT_INITIALIZER(DISPATCH_TIMER_QOS_##qos, note)
 
-struct kevent64_s _dispatch_kevent_timeout[] = {
+static struct kevent64_s _dispatch_kevent_timeout[] = {
 	DISPATCH_KEVENT_TIMEOUT_INIT(NORMAL, 0),
 	DISPATCH_KEVENT_TIMEOUT_INIT(CRITICAL, NOTE_CRITICAL),
 	DISPATCH_KEVENT_TIMEOUT_INIT(BACKGROUND, NOTE_BACKGROUND),
@@ -1628,7 +1635,7 @@ _dispatch_timers_get_delay(uint64_t nows[], struct dispatch_timer_s timer[],
 	uint64_t tmp, delta = UINT64_MAX, dldelta = UINT64_MAX;
 
 	for (tidx = 0; tidx < DISPATCH_TIMER_COUNT; tidx++) {
-		if (qos >= 0 && qos != DISPATCH_TIMER_QOS(tidx)){
+		if (qos >= 0 && (unsigned int)qos != DISPATCH_TIMER_QOS(tidx)) {
 			continue;
 		}
 		uint64_t target = timer[tidx].target;
@@ -1695,6 +1702,7 @@ _dispatch_timers_program2(uint64_t nows[], struct kevent64_s *ke,
 		ke->flags |= EV_DELETE;
 		ke->flags &= ~(EV_ADD|EV_ENABLE);
 	} else {
+		(void)tidx;
 		_dispatch_trace_next_timer_set(
 				TAILQ_FIRST(&_dispatch_kevent_timer[tidx].dk_sources), qos);
 		_dispatch_trace_next_timer_program(delay, qos);
@@ -1850,7 +1858,7 @@ static void
 _dispatch_timer_aggregate_get_delay(void *ctxt)
 {
 	dispatch_timer_delay_t dtd = ctxt;
-	struct { uint64_t nows[DISPATCH_TIMER_KIND_COUNT]; } dtn = {};
+	struct { uint64_t nows[DISPATCH_TIMER_KIND_COUNT]; } dtn = {{0}};
 	_dispatch_timers_get_delay(dtn.nows, dtd->timer, &dtd->delay, &dtd->leeway,
 			-1);
 }
@@ -2088,14 +2096,14 @@ _dispatch_mgr_select(bool poll)
 					continue;
 				}
 				FD_CLR(i, &_dispatch_rfds); // emulate EV_DISPATCH
-				EV_SET64(&kev, i, EVFILT_READ,
+				EV_SET64(&kev, (uint64_t)i, EVFILT_READ,
 						EV_ADD|EV_ENABLE|EV_DISPATCH, 0, 1,
 						_dispatch_rfd_ptrs[i], 0, 0);
 				_dispatch_kevent_drain(&kev);
 			}
 			if (FD_ISSET(i, &tmp_wfds)) {
 				FD_CLR(i, &_dispatch_wfds); // emulate EV_DISPATCH
-				EV_SET64(&kev, i, EVFILT_WRITE,
+				EV_SET64(&kev, (uint64_t)i, EVFILT_WRITE,
 						EV_ADD|EV_ENABLE|EV_DISPATCH, 0, 1,
 						_dispatch_wfd_ptrs[i], 0, 0);
 				_dispatch_kevent_drain(&kev);
@@ -4250,8 +4258,10 @@ _dispatch_timer_debug_attr(dispatch_source_t ds, char* buf, size_t bufsiz)
 	dispatch_source_refs_t dr = ds->ds_refs;
 	return dsnprintf(buf, bufsiz, "timer = { target = 0x%llx, deadline = 0x%llx,"
 			" last_fire = 0x%llx, interval = 0x%llx, flags = 0x%lx }, ",
-			ds_timer(dr).target, ds_timer(dr).deadline, ds_timer(dr).last_fire,
-			ds_timer(dr).interval, ds_timer(dr).flags);
+			(unsigned long long)ds_timer(dr).target,
+			(unsigned long long)ds_timer(dr).deadline,
+			(unsigned long long)ds_timer(dr).last_fire,
+			(unsigned long long)ds_timer(dr).interval, ds_timer(dr).flags);
 }
 
 size_t
@@ -4307,9 +4317,11 @@ _dispatch_kevent_debug(struct kevent64_s* kev, const char* str)
 {
 	_dispatch_log("kevent[%p] = { ident = 0x%llx, filter = %s, flags = 0x%x, "
 			"fflags = 0x%x, data = 0x%llx, udata = 0x%llx, ext[0] = 0x%llx, "
-			"ext[1] = 0x%llx }: %s", kev, kev->ident, _evfiltstr(kev->filter),
-			kev->flags, kev->fflags, kev->data, kev->udata, kev->ext[0],
-			kev->ext[1], str);
+			"ext[1] = 0x%llx }: %s", kev, (unsigned long long)kev->ident,
+			_evfiltstr(kev->filter), kev->flags, kev->fflags,
+			(unsigned long long)kev->data, (unsigned long long)kev->udata,
+			(unsigned long long)kev->ext[0], (unsigned long long)kev->ext[1],
+			str);
 }
 
 static void

@@ -50,6 +50,6 @@ strlcpy(char * __restrict dst, const char * __restrict src, size_t siz)
 			;
 	}
 
-	return(s - src - 1);	/* count does not include NUL */
+	return (size_t)(s - src) - 1;	/* count does not include NUL */
 }
 #endif

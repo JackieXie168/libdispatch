@@ -142,10 +142,16 @@ _dispatch_absolute_time(void)
 #error "clock_gettime: no supported absolute time clock"
 #endif
 	(void)dispatch_assume_zero(ret);
-
-	/* XXXRW: Some kind of overflow detection needed? */
-	return (ts.tv_sec * NSEC_PER_SEC + ts.tv_nsec);
-#endif // HAVE_MACH_ABSOLUTE_TIME
+	uint64_t sec = (uint64_t)ts.tv_sec;
+	uint64_t nsec = (uint64_t)ts.tv_nsec;
+	if (slowpath(UINT64_MAX / NSEC_PER_SEC < sec)) {
+		return UINT64_MAX;
+	} else if (slowpath(UINT64_MAX - nsec < sec * NSEC_PER_SEC)) {
+		return UINT64_MAX;
+	} else {
+		return sec * NSEC_PER_SEC + nsec;
+	}
+#endif  // HAVE_MACH_ABSOLUTE_TIME
 }
 
 

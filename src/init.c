@@ -398,8 +398,8 @@ _dispatch_logv_init(void *context DISPATCH_UNUSED)
 			struct timeval tv;
 			gettimeofday(&tv, NULL);
 			dprintf(dispatch_logfile, "=== log file opened for %s[%u] at "
-					"%ld.%06u ===\n", getprogname() ?: "", getpid(),
-					tv.tv_sec, tv.tv_usec);
+					"%lld.%06lld ===\n", getprogname() ?: "", getpid(),
+					(long long)tv.tv_sec, (long long)tv.tv_usec);
 		}
 	}
 }
@@ -965,8 +965,8 @@ const struct dispatch_source_type_s _dispatch_source_type_vfs = {
 			,
 };
 
-const struct dispatch_source_type_s _dispatch_source_type_sock = {
 #ifdef EVFILT_SOCK
+const struct dispatch_source_type_s _dispatch_source_type_sock = {
 	.ke = {
 		.filter = EVFILT_SOCK,
 		.flags = EV_CLEAR,
@@ -981,8 +981,8 @@ const struct dispatch_source_type_s _dispatch_source_type_sock = {
 		| NOTE_CONNECTED | NOTE_DISCONNECTED | NOTE_CONNINFO_UPDATED
 #endif
 		,
-#endif // EVFILT_SOCK
 };
+#endif // EVFILT_SOCK
 
 const struct dispatch_source_type_s _dispatch_source_type_data_add = {
 	.ke = {

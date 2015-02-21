@@ -306,9 +306,12 @@ dispatch_resume(dispatch_object_t dou)
 size_t
 _dispatch_object_debug_attr(dispatch_object_t dou, char* buf, size_t bufsiz)
 {
-	return dsnprintf(buf, bufsiz, "xrefcnt = 0x%x, refcnt = 0x%x, "
-			"suspend_cnt = 0x%x, locked = %d, ", dou._do->do_xref_cnt + 1,
-			dou._do->do_ref_cnt + 1,
+	return dsnprintf(
+			buf, bufsiz,
+			"xrefcnt = 0x%x, refcnt = 0x%x, "
+			"suspend_cnt = 0x%x, locked = %d, ",
+			dou._do->do_xref_cnt < INT_MAX ? dou._do->do_xref_cnt + 1 : INT_MAX,
+			dou._do->do_ref_cnt < INT_MAX ? dou._do->do_ref_cnt + 1 : INT_MAX,
 			dou._do->do_suspend_cnt / DISPATCH_OBJECT_SUSPEND_INTERVAL,
 			dou._do->do_suspend_cnt & 1);
 }
