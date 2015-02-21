@@ -292,6 +292,10 @@ DISPATCH_EXPORT DISPATCH_NOTHROW void dispatch_atfork_child(void);
 #define DISPATCH_CONCAT(x,y) DISPATCH_CONCAT1(x,y)
 #define DISPATCH_CONCAT1(x,y) x ## y
 
+#define DISPATCH_IF(cond, x, y) DISPATCH_CONCAT(DISPATCH_IF, cond)(x, y)
+#define DISPATCH_IF1(x, y) x
+#define DISPATCH_IF0(x, y) y
+
 // workaround 6368156
 #ifdef NSEC_PER_SEC
 #undef NSEC_PER_SEC

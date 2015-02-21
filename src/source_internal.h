@@ -32,6 +32,66 @@
 #include <dispatch/base.h> // for HeaderDoc
 #endif
 
+#if !HAVE_DECL_KEVENT64_S
+struct kevent64_s {
+	uint64_t ident;
+	int16_t filter;
+	uint16_t flags;
+	uint32_t fflags;
+	int64_t data;
+	uint64_t udata;
+	uint64_t ext[2];
+};
+#endif
+
+#if !HAVE_DECL_EV_SET64
+#define EV_SET64(kevp, a, b, c, d, e, f, g, h) \
+	do {                                       \
+		struct kevent64_s *__kevp__ = (kevp);  \
+		__kevp__->ident = (a);                 \
+		__kevp__->filter = (b);                \
+		__kevp__->flags = (c);                 \
+		__kevp__->fflags = (d);                \
+		__kevp__->data = (e);                  \
+		__kevp__->udata = (f);                 \
+		__kevp__->ext[0] = (g);                \
+		__kevp__->ext[1] = (h);                \
+	} while (0)
+#endif
+
+#if !HAVE_KEVENT64
+static inline int
+kevent64(int kq, const struct kevent64_s *changelist, int nchanges,
+		 struct kevent64_s *eventlist, int nevents, unsigned int flags,
+		 const struct timespec *timeout)
+{
+	(void)flags;
+	struct kevent events32[nchanges > nevents ? nchanges : nevents];
+	for (int i = 0; i < nchanges; ++i) {
+		events32[i].ident = changelist[i].ident;
+		events32[i].filter = changelist[i].filter;
+		events32[i].flags = changelist[i].flags;
+		events32[i].fflags = changelist[i].fflags;
+		events32[i].data = changelist[i].data;
+		events32[i].udata = (void *)changelist[i].udata;
+		dispatch_assume_zero(changelist[i].ext[0]);
+		dispatch_assume_zero(changelist[i].ext[1]);
+	}
+	int result = kevent(kq, events32, nchanges, events32, nevents, timeout);
+	for (int i = 0; i < nevents; ++i) {
+		eventlist[i].ident = events32[i].ident;
+		eventlist[i].filter = events32[i].filter;
+		eventlist[i].flags = events32[i].flags;
+		eventlist[i].fflags = events32[i].fflags;
+		eventlist[i].data = events32[i].data;
+		eventlist[i].udata = (uint64_t)events32[i].udata;
+		eventlist[i].ext[0] = 0;
+		eventlist[i].ext[1] = 0;
+	}
+	return result;
+}
+#endif // HAVE_KEVENT64
+
 #define DISPATCH_EVFILT_TIMER		(-EVFILT_SYSCOUNT - 1)
 #define DISPATCH_EVFILT_CUSTOM_ADD	(-EVFILT_SYSCOUNT - 2)
 #define DISPATCH_EVFILT_CUSTOM_OR	(-EVFILT_SYSCOUNT - 3)

@@ -72,6 +72,19 @@ _dispatch_kevent_debug(struct kevent64_s* kev DISPATCH_UNUSED,
 #define DISPATCH_ASSERT_ON_MANAGER_QUEUE()
 #endif
 
+#if HAVE_DECL_NOTE_NSECONDS
+#define DISPATCH_EVFILT_TIMER_DIVISOR 1ull
+#else
+#define DISPATCH_EVFILT_TIMER_DIVISOR 1000000ull
+#endif
+
+#define DISPATCH_DIV_CEIL(x, y)            \
+	({                                     \
+		typeof(x) _x = (x);                \
+		typeof(y) _y = (y);                \
+		(_x % _y) ? _x / _y + 1 : _x / _y; \
+	})
+
 #pragma mark -
 #pragma mark dispatch_source_t
 
@@ -1370,13 +1383,15 @@ struct dispatch_kevent_s _dispatch_kevent_timer[] = {
 		((sizeof(_dispatch_kevent_timer) / sizeof(_dispatch_kevent_timer[0])))
 
 #define DISPATCH_KEVENT_TIMEOUT_IDENT_MASK (~0ull << 8)
-#define DISPATCH_KEVENT_TIMEOUT_INITIALIZER(qos, note) \
-	[qos] = { \
-		.ident = DISPATCH_KEVENT_TIMEOUT_IDENT_MASK|(qos), \
-		.filter = EVFILT_TIMER, \
-		.flags = EV_ONESHOT, \
-		.fflags = NOTE_ABSOLUTE|NOTE_NSECONDS|NOTE_LEEWAY|(note), \
-	}
+#define DISPATCH_KEVENT_TIMEOUT_INITIALIZER(qos, note)                        \
+	[qos] = {.ident = DISPATCH_KEVENT_TIMEOUT_IDENT_MASK | (qos),             \
+			 .filter = EVFILT_TIMER,                                          \
+			 .flags = EV_ONESHOT,                                             \
+			 .fflags =                                                        \
+					 DISPATCH_IF(HAVE_DECL_NOTE_ABSOLUTE, NOTE_ABSOLUTE, 0) | \
+					 DISPATCH_IF(HAVE_DECL_NOTE_NSECONDS, NOTE_NSECONDS, 0) | \
+					 DISPATCH_IF(HAVE_DECL_NOTE_LEEWAY, NOTE_LEEWAY, 0) |     \
+					 (note), }
 #define DISPATCH_KEVENT_TIMEOUT_INIT(qos, note) \
 		DISPATCH_KEVENT_TIMEOUT_INITIALIZER(DISPATCH_TIMER_QOS_##qos, note)
 
@@ -1683,13 +1698,18 @@ _dispatch_timers_program2(uint64_t nows[], struct kevent64_s *ke,
 		_dispatch_trace_next_timer_set(
 				TAILQ_FIRST(&_dispatch_kevent_timer[tidx].dk_sources), qos);
 		_dispatch_trace_next_timer_program(delay, qos);
+#if HAVE_DECL_NOTE_ABSOLUTE
 		delay += _dispatch_source_timer_now(nows, DISPATCH_TIMER_KIND_WALL);
+#endif
 		if (slowpath(_dispatch_timers_force_max_leeway)) {
-			ke->data = (int64_t)(delay + leeway);
+			ke->data = (int64_t)DISPATCH_DIV_CEIL(
+					delay + leeway, DISPATCH_EVFILT_TIMER_DIVISOR);
 			ke->ext[1] = 0;
 		} else {
-			ke->data = (int64_t)delay;
-			ke->ext[1] = leeway;
+			ke->data = (int64_t)DISPATCH_DIV_CEIL(
+					delay, DISPATCH_EVFILT_TIMER_DIVISOR);
+			ke->ext[1] =
+					DISPATCH_DIV_CEIL(leeway, DISPATCH_EVFILT_TIMER_DIVISOR);
 		}
 		ke->flags |= EV_ADD|EV_ENABLE;
 		ke->flags &= ~EV_DELETE;
