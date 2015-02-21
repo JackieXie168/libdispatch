@@ -1544,6 +1544,7 @@ _dispatch_timers_update(dispatch_source_t ds)
 			(void)dispatch_atomic_or2o(ds, ds_atomic_flags, DSF_ARMED, relaxed);
 		}
 		free(dk);
+		ds->ds_dkev = NULL;
 		_dispatch_object_debug(ds, "%s", __func__);
 	} else {
 		_dispatch_timers_unregister(ds, dk);
