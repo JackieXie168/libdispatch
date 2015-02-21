@@ -194,10 +194,8 @@ _dispatch_semaphore_dispose(dispatch_object_t dou)
 		DISPATCH_SEMAPHORE_VERIFY_KR(kr);
 	}
 #elif USE_POSIX_SEM
-	if (dsema->dsema_sem) {
-		int ret = sem_destroy(&dsema->dsema_sem);
-		DISPATCH_SEMAPHORE_VERIFY_RET(ret);
-	}
+	int ret = sem_destroy(&dsema->dsema_sem);
+	DISPATCH_SEMAPHORE_VERIFY_RET(ret);
 #elif USE_WIN32_SEM
 	if (dsema->dsema_handle) {
 		CloseHandle(dsema->dsema_handle);
@@ -243,6 +241,7 @@ _dispatch_semaphore_signal_slow(dispatch_semaphore_t dsema)
 	kern_return_t kr = semaphore_signal(dsema->dsema_port);
 	DISPATCH_SEMAPHORE_VERIFY_KR(kr);
 #elif USE_POSIX_SEM
+	// POSIX semaphore created at dispatch_semaphore_t init time.
 	int ret = sem_post(&dsema->dsema_sem);
 	DISPATCH_SEMAPHORE_VERIFY_RET(ret);
 #elif USE_WIN32_SEM
