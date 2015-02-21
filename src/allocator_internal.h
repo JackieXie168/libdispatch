@@ -28,7 +28,8 @@
 #define __DISPATCH_ALLOCATOR_INTERNAL__
 
 #ifndef DISPATCH_ALLOCATOR
-#if TARGET_OS_MAC && (defined(__LP64__) || TARGET_OS_EMBEDDED)
+#if (TARGET_OS_MAC && (defined(__LP64__) || TARGET_OS_EMBEDDED)) || \
+		TARGET_OS_LINUX
 #define DISPATCH_ALLOCATOR 1
 #endif
 #endif
@@ -260,7 +261,7 @@ struct dispatch_magazine_s {
 };
 
 #if DISPATCH_DEBUG
-#define DISPATCH_ALLOCATOR_SCRIBBLE ((uintptr_t)0xAFAFAFAFAFAFAFAF)
+#define DISPATCH_ALLOCATOR_SCRIBBLE ((int)0xAF)
 #endif
 
 #endif // DISPATCH_ALLOCATOR

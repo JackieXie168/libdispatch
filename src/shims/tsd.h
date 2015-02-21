@@ -31,6 +31,10 @@
 #include <pthread_machdep.h>
 #endif
 
+#if TARGET_OS_LINUX
+#include <sched.h>
+#endif
+
 #define DISPATCH_TSD_INLINE DISPATCH_ALWAYS_INLINE_NDEBUG
 
 #if USE_APPLE_TSD_OPTIMIZATIONS && HAVE_PTHREAD_KEY_INIT_NP && \
@@ -135,6 +139,9 @@ _dispatch_cpu_number(void)
 	return 0;
 #elif __has_include(<os/tsd.h>)
 	return _os_cpu_number();
+#elif TARGET_OS_LINUX
+	int val = sched_getcpu();
+	return val >= 0 ? (unsigned int)val : 0;
 #elif defined(__x86_64__) || defined(__i386__)
 	struct { uintptr_t p1, p2; } p;
 	__asm__("sidt %[p]" : [p] "=&m" (p));

@@ -23,9 +23,11 @@
 
 #if DISPATCH_ALLOCATOR
 
+#if __APPLE__
 #ifndef VM_MEMORY_LIBDISPATCH
 #define VM_MEMORY_LIBDISPATCH 74
 #endif
+#endif // __APPLE__
 
 // _dispatch_main_heap is is the first heap in the linked list, where searches
 // always begin.
@@ -127,7 +129,7 @@ continuation_is_in_first_page(dispatch_continuation_t c)
 	// (the base of c's magazine == the base of c's page)
 	// => c is in first page of magazine
 	return (((uintptr_t)c & MAGAZINE_MASK) ==
-			((uintptr_t)c & ~(uintptr_t)PAGE_MASK));
+			((uintptr_t)c & ~(uintptr_t)(PAGE_SIZE - 1)));
 #else
 	(void)c;
 	return false;
@@ -173,7 +175,7 @@ madvisable_page_base_for_continuation(dispatch_continuation_t c)
 	if (fastpath(continuation_is_in_first_page(c))) {
 		return NULL;
 	}
-	void *page_base = (void *)((uintptr_t)c & ~(uintptr_t)PAGE_MASK);
+	void *page_base = (void *)((uintptr_t)c & ~(uintptr_t)(PAGE_SIZE - 1));
 #if DISPATCH_DEBUG
 	struct dispatch_magazine_s *m = magazine_for_continuation(c);
 	if (slowpath(page_base < (void *)&m->conts)) {
@@ -372,10 +374,15 @@ _dispatch_alloc_try_create_heap(dispatch_heap_t *heap_ptr)
 	uintptr_t aligned_region = (uintptr_t)vm_addr;
 #else // HAVE_MACH
 	const size_t region_sz = (1 + MAGAZINES_PER_HEAP) * BYTES_PER_MAGAZINE;
+#if __APPLE__
+	const int tag = VM_MAKE_TAG(VM_MEMORY_LIBDISPATCH);
+#else
+	const int tag = -1;
+#endif
 	void *region_p;
 	while (!dispatch_assume((region_p = mmap(NULL, region_sz,
-			PROT_READ|PROT_WRITE, MAP_ANON | MAP_PRIVATE,
-			VM_MAKE_TAG(VM_MEMORY_LIBDISPATCH), 0)) != MAP_FAILED)) {
+			PROT_READ|PROT_WRITE, MAP_ANON | MAP_PRIVATE, tag,
+			0)) != MAP_FAILED)) {
 		_dispatch_temporary_resource_shortage();
 	}
 	uintptr_t region = (uintptr_t)region_p;
@@ -568,8 +575,11 @@ _dispatch_alloc_maybe_madvise_page(dispatch_continuation_t c)
 	// madvise (syscall) flushes these stores
 	memset(page, DISPATCH_ALLOCATOR_SCRIBBLE, PAGE_SIZE);
 #endif
+#ifdef MADV_FREE
 	(void)dispatch_assume_zero(madvise(page, PAGE_SIZE, MADV_FREE));
-
+#else
+	(void)dispatch_assume_zero(madvise(page, PAGE_SIZE, MADV_DONTNEED));
+#endif
 unlock:
 	while (last_locked > 1) {
 		page_bitmaps[--last_locked] = BITMAP_C(0);
@@ -667,7 +677,7 @@ _dispatch_malloc_init(void)
 	dispatch_assert(_dispatch_ccache_zone);
 	malloc_set_zone_name(_dispatch_ccache_zone, "DispatchContinuations");
 }
-#else
+#elif DISPATCH_ALLOCATOR
 static inline void _dispatch_malloc_init(void) {}
 #endif // DISPATCH_USE_MALLOCZONE
 
@@ -734,7 +744,12 @@ _dispatch_continuation_alloc_once()
 	dispatch_once_f(&pred, NULL, _dispatch_continuation_alloc_init);
 }
 #else
-static inline void _dispatch_continuation_alloc_once(void) {}
+static inline void _dispatch_continuation_alloc_once(void)
+{
+#if DISPATCH_ALLOCATOR
+	if (_dispatch_use_dispatch_alloc) return _dispatch_alloc_init();
+#endif
+}
 #endif // DISPATCH_ALLOCATOR ... || DISPATCH_CONTINUATION_MALLOC ...
 
 dispatch_continuation_t
