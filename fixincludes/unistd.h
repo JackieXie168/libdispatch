@@ -4,7 +4,7 @@
  * We work around the issue by forcibly undefining __block. See
  * https://bugzilla.redhat.com/show_bug.cgi?id=1009623 */
 
-#if HAS_PROBLEMATIC_UNISTD_H
+#if HAVE_PROBLEMATIC_UNISTD_H
 #pragma push_macro("__block")
 #undef __block
 #define __block my__block

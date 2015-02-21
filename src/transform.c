@@ -652,7 +652,7 @@ _dispatch_transform_to_base32_with_table(dispatch_data_t data, const unsigned ch
 	size_t total = dispatch_data_get_size(data);
 	__block size_t count = 0;
 
-	if (total > SIZE_T_MAX-4 || ((total+4)/5 > SIZE_T_MAX/8)) {
+	if (total > SIZE_MAX-4 || ((total+4)/5 > SIZE_MAX/8)) {
 		/* We can't hold larger than size_t in a dispatch_data_t
 		 * and we want to avoid an integer overflow in the next
 		 * calculation.
@@ -888,7 +888,7 @@ _dispatch_transform_to_base64(dispatch_data_t data)
 	size_t total = dispatch_data_get_size(data);
 	__block size_t count = 0;
 
-	if (total > SIZE_T_MAX-2 || ((total+2)/3> SIZE_T_MAX/4)) {
+	if (total > SIZE_MAX-2 || ((total+2)/3> SIZE_MAX/4)) {
 		/* We can't hold larger than size_t in a dispatch_data_t
 		 * and we want to avoid an integer overflow in the next
 		 * calculation.

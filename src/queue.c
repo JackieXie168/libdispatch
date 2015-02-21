@@ -27,9 +27,8 @@
 #define MACH_PORT_DEAD (~0u)
 #endif
 
-#if __linux__
+#if TARGET_OS_LINUX
 #include <sys/eventfd.h>
-#define DISPATCH_LINUX_COMPAT 1
 #endif
 
 #if (!HAVE_PTHREAD_WORKQUEUES || DISPATCH_DEBUG) && \
@@ -68,7 +67,7 @@ static void *_dispatch_worker_thread(void *context);
 static int _dispatch_pthread_sigmask(int how, sigset_t *set, sigset_t *oset);
 #endif
 
-#if DISPATCH_COCOA_COMPAT || DISPATCH_LINUX_COMPAT
+#if DISPATCH_COCOA_COMPAT || TARGET_OS_LINUX
 static dispatch_once_t _dispatch_main_q_port_pred;
 static dispatch_queue_t _dispatch_main_queue_wakeup(void);
 unsigned long _dispatch_runloop_queue_wakeup(dispatch_queue_t dq);
@@ -857,7 +856,7 @@ dispatch_set_target_queue(dispatch_object_t dou, dispatch_queue_t dq)
 		_dispatch_retain(dq);
 		return _dispatch_barrier_trysync_f(dou._dq, dq,
 				_dispatch_set_target_queue2);
-#if WITH_DISPATCH_IO
+#ifdef __BLOCKS__
 	case _DISPATCH_IO_TYPE:
 		return _dispatch_io_set_target_queue(dou._dchannel, dq);
 #endif
@@ -877,7 +876,9 @@ dispatch_set_target_queue(dispatch_object_t dou, dispatch_queue_t dq)
 
 struct dispatch_pthread_root_queue_context_s {
 	pthread_attr_t dpq_thread_attr;
+#ifdef __BLOCKS__
 	dispatch_block_t dpq_thread_configure;
+#endif
 	struct dispatch_semaphore_s dpq_thread_mediator;
 };
 typedef struct dispatch_pthread_root_queue_context_s *
@@ -985,6 +986,7 @@ _dispatch_mgr_priority_raise(const pthread_attr_t *attr)
 	}
 }
 
+#ifdef __BLOCKS__
 dispatch_queue_t
 dispatch_pthread_root_queue_create(const char *label, unsigned long flags,
 		const pthread_attr_t *attr, dispatch_block_t configure)
@@ -1037,6 +1039,7 @@ dispatch_pthread_root_queue_create(const char *label, unsigned long flags,
 	_dispatch_object_debug(dq, "%s", __func__);
 	return _dispatch_introspection_queue_create(dq);
 }
+#endif // __BLOCKS__
 #endif // DISPATCH_ENABLE_PTHREAD_ROOT_QUEUES
 
 void
@@ -1052,9 +1055,11 @@ _dispatch_pthread_root_queue_dispose(dispatch_queue_t dq)
 	dispatch_pthread_root_queue_context_t pqc = qc->dgq_ctxt;
 
 	_dispatch_semaphore_dispose(qc->dgq_thread_mediator);
+#ifdef __BLOCKS__
 	if (pqc->dpq_thread_configure) {
 		Block_release(pqc->dpq_thread_configure);
 	}
+#endif
 	dq->do_targetq = _dispatch_get_root_queue(0, false);
 #endif
 	if (dq->dq_label) {
@@ -1727,7 +1732,7 @@ _dispatch_barrier_sync_f_slow_invoke(void *ctxt)
 	sema = (_dispatch_thread_semaphore_t)dc->dc_other;
 
 	dispatch_assert(dq == _dispatch_queue_get_current());
-#if DISPATCH_COCOA_COMPAT || DISPATCH_LINUX_COMPAT
+#if DISPATCH_COCOA_COMPAT || TARGET_OS_LINUX
 	if (slowpath(dq->dq_is_thread_bound)) {
 		// The queue is bound to a non-dispatch thread (e.g. main thread)
 		_dispatch_client_callout(dc->dc_ctxt, dc->dc_func);
@@ -1760,7 +1765,7 @@ _dispatch_barrier_sync_f_slow(dispatch_queue_t dq, void *ctxt,
 	_dispatch_thread_semaphore_t sema = _dispatch_get_thread_semaphore();
 	struct dispatch_continuation_s dc = {
 		.dc_data = dq,
-#if DISPATCH_COCOA_COMPAT || DISPATCH_LINUX_COMPAT
+#if DISPATCH_COCOA_COMPAT || TARGET_OS_LINUX
 		.dc_func = func,
 		.dc_ctxt = ctxt,
 #endif
@@ -1780,7 +1785,7 @@ _dispatch_barrier_sync_f_slow(dispatch_queue_t dq, void *ctxt,
 	_dispatch_thread_semaphore_wait(sema); // acquire
 	_dispatch_put_thread_semaphore(sema);
 
-#if DISPATCH_COCOA_COMPAT || DISPATCH_LINUX_COMPAT
+#if DISPATCH_COCOA_COMPAT || TARGET_OS_LINUX
 	// Queue bound to a non-dispatch thread
 	if (dc.dc_func == NULL) {
 		return;
@@ -2228,7 +2233,7 @@ _dispatch_wakeup(dispatch_object_t dou)
 	}
 	if (!dispatch_atomic_cmpxchg2o(dou._do, do_suspend_cnt, 0,
 			DISPATCH_OBJECT_SUSPEND_LOCK, release)) {
-#if DISPATCH_COCOA_COMPAT || DISPATCH_LINUX_COMPAT
+#if DISPATCH_COCOA_COMPAT || TARGET_OS_LINUX
 		if (dou._dq == &_dispatch_main_q) {
 			return _dispatch_main_queue_wakeup();
 		}
@@ -2242,7 +2247,7 @@ _dispatch_wakeup(dispatch_object_t dou)
 				// probe does
 }
 
-#if DISPATCH_COCOA_COMPAT || DISPATCH_LINUX_COMPAT
+#if DISPATCH_COCOA_COMPAT || TARGET_OS_LINUX
 static inline void
 _dispatch_runloop_queue_wakeup_thread(dispatch_queue_t dq)
 {
@@ -2261,7 +2266,7 @@ _dispatch_runloop_queue_wakeup_thread(dispatch_queue_t dq)
 		(void)dispatch_assume_zero(kr);
 		break;
 	}
-#elif DISPATCH_LINUX_COMPAT
+#elif TARGET_OS_LINUX
 	int fd = (int)(intptr_t)dq->do_ctxt;
 	ssize_t result;
 	do {
@@ -2294,7 +2299,7 @@ _dispatch_main_queue_wakeup(void)
 	_dispatch_runloop_queue_wakeup_thread(dq);
 	return NULL;
 }
-#endif  // DISPATCH_COCOA_COMPAT || DISPATCH_LINUX_COMPAT
+#endif  // DISPATCH_COCOA_COMPAT || TARGET_OS_LINUX
 
 DISPATCH_NOINLINE
 static void
@@ -2522,7 +2527,7 @@ out:
 	return sema;
 }
 
-#if DISPATCH_COCOA_COMPAT || DISPATCH_LINUX_COMPAT
+#if DISPATCH_COCOA_COMPAT || TARGET_OS_LINUX
 static void
 _dispatch_main_queue_drain(void)
 {
@@ -2560,7 +2565,7 @@ out:
 	_dispatch_perfmon_end();
 	_dispatch_force_cache_cleanup();
 }
-#endif  // DISPATCH_COCOA_COMPAT || DISPATCH_LINUX_COMPAT
+#endif  // DISPATCH_COCOA_COMPAT || TARGET_OS_LINUX
 
 #if DISPATCH_COCOA_COMPAT
 static bool
@@ -2886,7 +2891,7 @@ _dispatch_pthread_sigmask(int how, sigset_t *set, sigset_t *oset)
 
 static bool _dispatch_program_is_probably_callback_driven;
 
-#if DISPATCH_COCOA_COMPAT || DISPATCH_LINUX_COMPAT
+#if DISPATCH_COCOA_COMPAT || TARGET_OS_LINUX
 
 #if DISPATCH_COCOA_COMPAT
 dispatch_queue_t
@@ -2996,7 +3001,7 @@ _dispatch_runloop_queue_port_init(void *ctxt)
 	}
 	dq->do_ctxt = (void*)(uintptr_t)mp;
 
-#elif DISPATCH_LINUX_COMPAT
+#elif TARGET_OS_LINUX
 	int fd = eventfd(0, EFD_CLOEXEC | EFD_NONBLOCK);
 	(void)dispatch_assume(fd != -1);
 	dq->do_ctxt = (void*)(uintptr_t)fd;
@@ -3020,7 +3025,7 @@ _dispatch_runloop_queue_port_dispose(dispatch_queue_t dq)
 	kr = mach_port_mod_refs(mach_task_self(), mp, MACH_PORT_RIGHT_RECEIVE, -1);
 	DISPATCH_VERIFY_MIG(kr);
 	(void)dispatch_assume_zero(kr);
-#elif DISPATCH_LINUX_COMPAT
+#elif TARGET_OS_LINUX
 	int fd = (int)(intptr_t)dq->do_ctxt;
 	(void)dispatch_assume_zero(close(fd));
 #endif
@@ -3064,7 +3069,7 @@ _dispatch_main_queue_callback_4CF(mach_msg_header_t *msg DISPATCH_UNUSED)
 }
 #endif
 
-#if DISPATCH_LINUX_COMPAT
+#if TARGET_OS_LINUX
 int
 dispatch_get_main_queue_handle_np()
 {
@@ -3103,8 +3108,8 @@ dispatch_main_queue_drain_np()
 	_dispatch_main_queue_drain();
 	_dispatch_queue_set_mainq_drain_state(false);
 }
-#endif  // DISPATCH_LINUX_COMPAT
-#endif // DISPATCH_COCOA_COMPAT || DISPATCH_LINUX_COMPAT
+#endif  // TARGET_OS_LINUX
+#endif // DISPATCH_COCOA_COMPAT || TARGET_OS_LINUX
 
 void
 dispatch_main(void)
@@ -3161,7 +3166,7 @@ _dispatch_queue_cleanup2(void)
 		sleep(1); // workaround 6778970
 	}
 
-#if DISPATCH_COCOA_COMPAT || DISPATCH_LINUX_COMPAT
+#if DISPATCH_COCOA_COMPAT || TARGET_OS_LINUX
 	dispatch_once_f(&_dispatch_main_q_port_pred, dq,
 			_dispatch_runloop_queue_port_init);
 	_dispatch_runloop_queue_port_dispose(dq);

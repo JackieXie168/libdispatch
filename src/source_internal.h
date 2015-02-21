@@ -193,6 +193,7 @@ struct dispatch_source_s {
 	unsigned long ds_pending_data;
 };
 
+#if HAVE_MACH
 // Mach channel state which may contain references to the channel object
 // layout must match dispatch_source_refs_s
 struct dispatch_mach_refs_s {
@@ -244,6 +245,7 @@ struct dispatch_mach_msg_s {
 		char buf[0];
 	};
 };
+#endif // HAVE_MACH
 
 #if TARGET_OS_EMBEDDED
 #define DSL_HASH_SIZE  64u // must be a power of two
@@ -258,6 +260,7 @@ unsigned long _dispatch_source_probe(dispatch_source_t ds);
 size_t _dispatch_source_debug(dispatch_source_t ds, char* buf, size_t bufsiz);
 void _dispatch_source_set_interval(dispatch_source_t ds, uint64_t interval);
 
+#if HAVE_MACH
 void _dispatch_mach_dispose(dispatch_mach_t dm);
 void _dispatch_mach_invoke(dispatch_mach_t dm);
 unsigned long _dispatch_mach_probe(dispatch_mach_t dm);
@@ -268,6 +271,7 @@ void _dispatch_mach_msg_invoke(dispatch_mach_msg_t dmsg);
 size_t _dispatch_mach_msg_debug(dispatch_mach_msg_t dmsg, char* buf, size_t bufsiz);
 
 void _dispatch_mach_barrier_invoke(void *ctxt);
+#endif // HAVE_MACH
 
 unsigned long _dispatch_mgr_wakeup(dispatch_queue_t dq);
 void _dispatch_mgr_thread(dispatch_queue_t dq);

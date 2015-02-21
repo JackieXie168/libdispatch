@@ -27,7 +27,8 @@
 #ifndef __DISPATCH_SHIMS_ATOMIC_SFB__
 #define __DISPATCH_SHIMS_ATOMIC_SFB__
 
-#if __clang__ && __clang_major__ < 5 // <rdar://problem/13833871>
+#if HAVE_PROBLEMATIC_BUILTIN_FFS
+// <rdar://problem/13833871>
 #define __builtin_ffs(x) __builtin_ffs((unsigned int)(x))
 #endif
 

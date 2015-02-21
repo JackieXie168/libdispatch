@@ -200,8 +200,10 @@ _dispatch_xref_dispose(dispatch_object_t dou)
 #if !USE_OBJC
 	if (dx_type(dou._do) == DISPATCH_SOURCE_KEVENT_TYPE) {
 		_dispatch_source_xref_dispose(dou._ds);
+#if DISPATCH_COCOA_COMPAT
 	} else if (dou._dq->do_vtable == DISPATCH_VTABLE(queue_runloop)) {
 		_dispatch_runloop_queue_xref_dispose(dou._dq);
+#endif
 	}
 	return _dispatch_release(dou._os_obj);
 #endif

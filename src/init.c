@@ -170,6 +170,7 @@ DISPATCH_VTABLE_SUBCLASS_INSTANCE(queue_root, queue,
 	.do_debug = dispatch_queue_debug,
 );
 
+#if DISPATCH_COCOA_COMPAT
 DISPATCH_VTABLE_SUBCLASS_INSTANCE(queue_runloop, queue,
 	.do_type = DISPATCH_QUEUE_ROOT_TYPE,
 	.do_kind = "runloop-queue",
@@ -178,6 +179,7 @@ DISPATCH_VTABLE_SUBCLASS_INSTANCE(queue_runloop, queue,
 	.do_probe = _dispatch_runloop_queue_probe,
 	.do_debug = dispatch_queue_debug,
 );
+#endif
 
 DISPATCH_VTABLE_SUBCLASS_INSTANCE(queue_mgr, queue,
 	.do_type = DISPATCH_QUEUE_MGR_TYPE,
@@ -210,6 +212,7 @@ DISPATCH_VTABLE_INSTANCE(source,
 	.do_debug = _dispatch_source_debug,
 );
 
+#if WITH_MACH
 DISPATCH_VTABLE_INSTANCE(mach,
 	.do_type = DISPATCH_MACH_CHANNEL_TYPE,
 	.do_kind = "mach-channel",
@@ -226,8 +229,9 @@ DISPATCH_VTABLE_INSTANCE(mach_msg,
 	.do_invoke = _dispatch_mach_msg_invoke,
 	.do_debug = _dispatch_mach_msg_debug,
 );
+#endif // HAVE_MACH
 
-#if WITH_DISPATCH_IO
+#ifdef __BLOCKS__
 #if !USE_OBJC
 DISPATCH_VTABLE_INSTANCE(data,
 	.do_type = DISPATCH_DATA_TYPE,
@@ -256,7 +260,7 @@ DISPATCH_VTABLE_INSTANCE(disk,
 	.do_kind = "disk",
 	.do_dispose = _dispatch_disk_dispose,
 );
-#endif /* WITH_DISPATCH_IO */
+#endif /* __BLOCKS__  */
 
 void
 _dispatch_vtable_init(void)
@@ -638,6 +642,7 @@ _dispatch_client_callout3(void *ctxt, dispatch_data_t region, size_t offset,
 	return res;
 }
 
+#if HAVE_MACH
 #undef _dispatch_client_callout4
 void
 _dispatch_client_callout4(void *ctxt, dispatch_mach_reason_t reason,
@@ -652,6 +657,7 @@ _dispatch_client_callout4(void *ctxt, dispatch_mach_reason_t reason,
 	_dispatch_free_unwind_tsd();
 	_dispatch_set_unwind_tsd(u);
 }
+#endif // HAVE_MACH
 
 #endif // DISPATCH_USE_CLIENT_CALLOUT
 

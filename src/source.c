@@ -512,11 +512,13 @@ _dispatch_source_kevent_resume(dispatch_source_t ds, uint32_t new_flags)
 	switch (ds->ds_dkev->dk_kevent.filter) {
 	case DISPATCH_EVFILT_TIMER:
 		return _dispatch_timers_update(ds);
+#if HAVE_MACH
 	case EVFILT_MACHPORT:
 		if (ds->ds_pending_data_mask & DISPATCH_MACH_RECV_MESSAGE) {
 			new_flags |= DISPATCH_MACH_RECV_MESSAGE; // emulate EV_DISPATCH
 		}
 		break;
+#endif // HAVE_MACH
 	}
 	if (_dispatch_kevent_resume(ds->ds_dkev, new_flags, 0)) {
 		_dispatch_source_kevent_unregister(ds);
@@ -1264,6 +1266,7 @@ dispatch_source_set_timer(dispatch_source_t ds, dispatch_time_t start,
 	_dispatch_source_set_timer(ds, start, interval, leeway, true);
 }
 
+#if TARGET_OS_MAC
 void
 _dispatch_source_set_runloop_timer_4CF(dispatch_source_t ds,
 		dispatch_time_t start, uint64_t interval, uint64_t leeway)
@@ -1271,6 +1274,7 @@ _dispatch_source_set_runloop_timer_4CF(dispatch_source_t ds,
 	// Don't serialize through the source queue for CF timers <rdar://13833190>
 	_dispatch_source_set_timer(ds, start, interval, leeway, false);
 }
+#endif
 
 void
 _dispatch_source_set_interval(dispatch_source_t ds, uint64_t interval)
@@ -1719,6 +1723,7 @@ _dispatch_timers_configure(void)
 	return _dispatch_timers_check(_dispatch_kevent_timer, _dispatch_timer);
 }
 
+#if HAVE_MACH
 static void
 _dispatch_timers_calendar_change(void)
 {
@@ -1726,6 +1731,7 @@ _dispatch_timers_calendar_change(void)
 	_dispatch_timer_expired = true;
 	_dispatch_timers_qos_mask = ~0u;
 }
+#endif
 
 static void
 _dispatch_timers_kevent(struct kevent64_s *ke)
@@ -2180,12 +2186,14 @@ retry:
 
 static struct kevent64_s *_dispatch_kevent_enable;
 
+#if HAVE_MACH
 static void inline
 _dispatch_mgr_kevent_reenable(struct kevent64_s *ke)
 {
 	dispatch_assert(!_dispatch_kevent_enable || _dispatch_kevent_enable == ke);
 	_dispatch_kevent_enable = ke;
 }
+#endif
 
 unsigned long
 _dispatch_mgr_wakeup(dispatch_queue_t dq DISPATCH_UNUSED)
@@ -4242,6 +4250,7 @@ _dispatch_source_debug(dispatch_source_t ds, char* buf, size_t bufsiz)
 	return offset;
 }
 
+#if HAVE_MACH
 static size_t
 _dispatch_mach_debug_attr(dispatch_mach_t dm, char* buf, size_t bufsiz)
 {
@@ -4270,6 +4279,7 @@ _dispatch_mach_debug(dispatch_mach_t dm, char* buf, size_t bufsiz)
 	offset += dsnprintf(&buf[offset], bufsiz - offset, "}");
 	return offset;
 }
+#endif // HAVE_MACH
 
 #if DISPATCH_DEBUG
 static void
@@ -4387,9 +4397,11 @@ _dispatch_kevent_debugger(void *context DISPATCH_UNUSED)
 	int val, r, fd, sock_opt = 1;
 	socklen_t slen = sizeof(sa_u);
 
+#if HAVE_ISSETUGID
 	if (issetugid()) {
 		return;
 	}
+#endif
 	valstr = getenv("LIBDISPATCH_DEBUGGER");
 	if (!valstr) {
 		return;

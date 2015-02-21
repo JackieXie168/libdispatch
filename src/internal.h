@@ -35,6 +35,8 @@
 #ifdef __APPLE__
 #include <Availability.h>
 #include <TargetConditionals.h>
+#elif __linux__
+#define TARGET_OS_LINUX 1
 #endif
 
 #if HAVE_DECL_TAILQ_FOREACH_SAFE
@@ -47,11 +49,8 @@
 #include "shims/strlcpy.h"
 #endif
 
-// FIXME
-#ifdef __BLOCKS__
-#define WITH_DISPATCH_IO 1
-#else 
-#define WITH_DISPATCH_IO 0
+#if TARGET_OS_LINUX
+#define USE_POSIX_SEM 1
 #endif
 
 #if !defined(DISPATCH_MACH_SPI) && TARGET_OS_MAC
@@ -163,6 +162,16 @@ DISPATCH_EXPORT DISPATCH_NOTHROW void dispatch_atfork_child(void);
 #define DISPATCH_PROFILE 0
 #endif
 
+#if TARGET_OS_LINUX
+#ifndef DISPATCH_USE_DTRACE
+#define DISPATCH_USE_DTRACE 0
+#endif
+
+#ifndef DISPATCH_USE_DTRACE_INTROSPECTION
+#define DISPATCH_USE_DTRACE_INTROSPECTION 0
+#endif
+#endif // TARGET_OS_LINUX
+
 #if (!TARGET_OS_EMBEDDED || DISPATCH_DEBUG || DISPATCH_PROFILE) && \
 		!defined(DISPATCH_USE_DTRACE)
 #define DISPATCH_USE_DTRACE 1
@@ -256,6 +265,9 @@ DISPATCH_EXPORT DISPATCH_NOTHROW void dispatch_atfork_child(void);
 #endif
 #ifndef __has_attribute
 #define __has_attribute(x) 0
+#endif
+#ifndef __has_extension
+#define __has_extension(x) 0
 #endif
 
 #if __GNUC__
@@ -489,11 +501,12 @@ _dispatch_client_callout2(void *ctxt, size_t i, void (*f)(void *, size_t));
 DISPATCH_NOTHROW bool
 _dispatch_client_callout3(void *ctxt, dispatch_data_t region, size_t offset,
 		const void *buffer, size_t size, dispatch_data_applier_function_t f);
+#if HAVE_MACH
 DISPATCH_NOTHROW void
 _dispatch_client_callout4(void *ctxt, dispatch_mach_reason_t reason,
 		dispatch_mach_msg_t dmsg, mach_error_t error,
 		dispatch_mach_handler_function_t f);
-
+#endif // HAVE_MACH
 #else // !DISPATCH_USE_CLIENT_CALLOUT
 
 DISPATCH_ALWAYS_INLINE
@@ -578,18 +591,9 @@ extern struct _dispatch_hw_config_s {
 /* #includes dependent on internal.h */
 #include "shims.h"
 
-// Linux workarounds
-// FIXME: There's no doubt a cleaner way to do this.
-#if HAVE_PTHREAD_WORKQUEUES
-#ifndef WORKQ_BG_PRIOQUEUE
+#if !defined(DISPATCH_NO_BG_PRIORITY) && !defined(WORKQ_BG_PRIOQUEUE)
 #define DISPATCH_NO_BG_PRIORITY 1
 #endif
-
-#if !HAVE_PTHREAD_WORKQUEUE_SETDISPATCH_NP
-#define DISPATCH_USE_LEGACY_WORKQUEUE_FALLBACK 1
-#endif
-#endif  // HAVE_PTHREAD_WORKQUEUES
-
 
 // Older Mac OS X and iOS Simulator fallbacks
 
@@ -753,10 +757,12 @@ extern struct _dispatch_hw_config_s {
 #include "introspection_internal.h"
 #include "queue_internal.h"
 #include "source_internal.h"
-#if WITH_DISPATCH_IO
-#include "io_internal.h"
+#ifdef __BLOCKS__
 #include "data_internal.h"
+#if !TARGET_OS_WIN32
+#include "io_internal.h"
 #endif
+#endif // __BLOCKS__
 #include "trace.h"
 
 #endif /* __DISPATCH_INTERNAL__ */
