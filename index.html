@@ -1,134 +1,182 @@
-<!doctype html>
+<!DOCTYPE html>
 <html>
   <head>
-    <meta charset="utf-8">
+    <meta charset='utf-8'>
     <meta http-equiv="X-UA-Compatible" content="chrome=1">
-    <title>Libdispatch for Linux by nickhutchinson</title>
-
-    <link rel="stylesheet" href="stylesheets/styles.css">
-    <link rel="stylesheet" href="stylesheets/pygment_trac.css">
-    <script src="javascripts/scale.fix.js"></script>
-    <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+    <link href='https://fonts.googleapis.com/css?family=Architects+Daughter' rel='stylesheet' type='text/css'>
+    <link rel="stylesheet" type="text/css" href="stylesheets/stylesheet.css" media="screen">
+    <link rel="stylesheet" type="text/css" href="stylesheets/pygment_trac.css" media="screen">
+    <link rel="stylesheet" type="text/css" href="stylesheets/print.css" media="print">
 
     <!--[if lt IE 9]>
     <script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script>
     <![endif]-->
-    
-    <script>
-      (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
-      (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
-      m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
-      })(window,document,'script','//www.google-analytics.com/analytics.js','ga');
-    
-      ga('create', 'UA-36058538-2', 'nickhutchinson.me');
-      ga('send', 'pageview');
-    
-    </script>
-    
+
+    <title>Libdispatch for Linux by nickhutchinson</title>
   </head>
+
   <body>
-    <div class="wrapper">
-      <header>
+    <header>
+      <div class="inner">
         <h1>Libdispatch for Linux</h1>
-        <p>Linux port of Apple's open-source concurrency library</p>
-        <p class="view"><a href="https://github.com/nickhutchinson/libdispatch">View the Project on GitHub <small>nickhutchinson/libdispatch</small></a></p>
-        <ul>
-          <li><a href="https://github.com/nickhutchinson/libdispatch/zipball/master">Download <strong>ZIP File</strong></a></li>
-          <li><a href="https://github.com/nickhutchinson/libdispatch/tarball/master">Download <strong>TAR Ball</strong></a></li>
-          <li><a href="https://github.com/nickhutchinson/libdispatch">View On <strong>GitHub</strong></a></li>
-        </ul>
-      </header>
-      <section>
-        <p>Pthreads getting you down? <a href="http://libdispatch.macosforge.org">libdispatch</a>, aka Grand Central Dispatch (GCD) is Apple's high-performance event-handling library, introduced in OS X Snow Leopard. It provides asynchronous task queues, monitoring of file descriptor read and write-ability, asynchronous I/O (for sockets <em>and</em> regular files), readers-writer locks, parallel for-loops, sane signal handling, periodic timers, semaphores and more. You'll want to read over Apple's <a href="http://developer.apple.com/library/ios/#documentation/Performance/Reference/GCD_libdispatch_Ref/Reference/reference.html">API reference</a>.</p>
+        <h2>Linux port of Apple&#39;s open-source concurrency library</h2>
+        <a href="https://github.com/nickhutchinson/libdispatch" class="button"><small>View project on</small> GitHub</a>
+      </div>
+    </header>
 
-<p>Currently, the trunk of the <a href="http://libdispatch.macosforge.org/trac/browser">official SVN repository</a> doesn't build on Linux; the last revision that builds out-of-the-box is <code>r199</code>, but that revision doesn't contain any of the nifty APIs added in OS X Lion, e.g. asynchronous I/O. This repo applies some patches by Mark Heily, taken from <a href="http://lists.macosforge.org/pipermail/libdispatch-dev/2012-August/000676.html">his post to the libdispatch mailing list</a>, along with some other fixes that I've cobbled together. It has not been exhaustively tested, but it seems to work well enough.</p>
+    <div id="content-wrapper">
+      <div class="inner clearfix">
+        <section id="main-content">
+          <h1>
+<a id="libdispatch-for-linux" class="anchor" href="#libdispatch-for-linux" aria-hidden="true"><span class="octicon octicon-link"></span></a>libdispatch for Linux</h1>
 
-<p>Patches are very welcome!</p>
+<p>pthreads getting you down? <a href="http://libdispatch.macosforge.org">libdispatch</a>,
+aka Grand Central Dispatch (GCD) is Apple's high-performance event-handling
+library, introduced in OS X Snow Leopard. It provides asynchronous task queues,
+monitoring of file descriptor read and write-ability, asynchronous I/O (for
+sockets <em>and</em> regular files), readers-writer locks, parallel for-loops, sane
+signal handling, periodic timers, semaphores and more. You'll want to read over
+Apple's <a href="http://developer.apple.com/library/ios/#documentation/Performance/Reference/GCD_libdispatch_Ref/Reference/reference.html">API reference</a>.</p>
 
-<h3>Changes from Apple's official version</h3>
+<h3>
+<a id="changes-from-apples-official-version" class="anchor" href="#changes-from-apples-official-version" aria-hidden="true"><span class="octicon octicon-link"></span></a>Changes from Apple's official version</h3>
 
-<p>I've added the ability to integrate libdispatch's main queue with third-party run-loops, e.g. GLib's <code>GMainLoop</code>. Call <code>dispatch_get_main_queue_eventfd_np()</code> to get a file descriptor your run-loop can monitor for reading; when it becomes readable, call <code>eventfd_read(2)</code> to acknowledge the wakeup, then call <code>dispatch_main_queue_drain_np()</code> to execute the pending tasks.</p>
+<p>I've added the ability to integrate libdispatch's main queue with third-party
+run-loops, e.g. GLib's <code>GMainLoop</code>.  Call
+<code>dispatch_get_main_queue_handle_np()</code> to get a file descriptor your run-loop
+can monitor for reading; when it becomes readable call
+<code>dispatch_main_queue_drain_np()</code> to execute the pending tasks.</p>
 
-<p>I've also added missing <code>_f</code> variants for several functions in <code>data.h</code> and <code>io.h</code> that took <a href="http://developer.apple.com/library/ios/#documentation/cocoa/Conceptual/Blocks/Articles/00_Introduction.html">Objective-C blocks</a> only: look for the functions with <code>_np</code> appended to them. Although you can make full use of libdispatch with compilers like GCC that don't support blocks, it is not advisable to build libdispatch itself with anything other than Clang, as the dispatch i/o portion cannot be built without compiler support for blocks.</p>
+<p>I've also added missing <code>_f</code> variants for several functions in <code>data.h</code> and
+<code>io.h</code> that took <a href="http://developer.apple.com/library/ios/#documentation/cocoa/Conceptual/Blocks/Articles/00_Introduction.html">Objective-C blocks</a>
+only: look for the functions with <code>_np</code> appended to them. Although you can make
+full use of libdispatch with compilers like GCC that don't support blocks, it
+is not advisable to build libdispatch itself with anything other than Clang, as
+the dispatch i/o portion cannot be built without compiler support for blocks.</p>
 
-<h2>Prerequisities</h2>
+<h2>
+<a id="runtime-requirements" class="anchor" href="#runtime-requirements" aria-hidden="true"><span class="octicon octicon-link"></span></a>Runtime Requirements</h2>
 
 <ul>
-<li><a href="http://mark.heily.com/project/libblocksruntime">libBlocksRuntime</a></li>
-<li><a href="http://mark.heily.com/project/libpthread_workqueue">libpthread_workqueue</a></li>
-<li><a href="http://mark.heily.com/project/libkqueue">libkqueue</a></li>
-<li><a href="http://llvm.org">Clang</a></li>
-<li><a href="http://cmake.org">CMake</a></li>
-</ul><h2>How to build</h2>
+<li><a href="https://github.com/mheily/blocks-runtime">libBlocksRuntime</a></li>
+<li><a href="https://github.com/mheily/libpwq">libpthread_workqueue</a></li>
+<li><a href="https://github.com/mheily/libkqueue">libkqueue</a></li>
+</ul>
 
-<p>The following does the job on Ubuntu 12.10:</p>
+<h2>
+<a id="build-requirements" class="anchor" href="#build-requirements" aria-hidden="true"><span class="octicon octicon-link"></span></a>Build Requirements</h2>
+
+<ul>
+<li>
+<a href="http://cmake.org">CMake</a> &gt;= 2.8.7</li>
+<li>
+<a href="http://python.org">Python2</a> &gt;= 2.6</li>
+<li>
+<a href="http://llvm.org">Clang</a> &gt;= 3.4</li>
+</ul>
+
+<h2>
+<a id="getting-started" class="anchor" href="#getting-started" aria-hidden="true"><span class="octicon octicon-link"></span></a>Getting Started:</h2>
+
+<p>On Ubuntu 12.04 LTS or greater, the required dependencies are available via
+apt-get. (However it ships with Clang 3.0, which is rather old and is not
+tested.)</p>
 
 <pre><code>sudo apt-get install libblocksruntime-dev libkqueue-dev libpthread-workqueue-dev cmake
-git clone git://github.com/nickhutchinson/libdispatch.git
+
+git clone git://github.com/nickhutchinson/libdispatch.git &amp;&amp; cd libdispatch
 mkdir libdispatch-build &amp;&amp; cd libdispatch-build
-cmake ../libdispatch -DCMAKE_C_COMPILER=clang -DCMAKE_BUILD_TYPE=Release
+./configure
 make
 sudo make install
 </code></pre>
 
-<h2>Testing</h2>
+<p><a href="https://travis-ci.org/nickhutchinson/libdispatch"><img src="https://travis-ci.org/nickhutchinson/libdispatch.svg?branch=master" alt="Build Status"></a></p>
 
-<p>The included test suite builds and runs on Linux (just run <code>make check</code>). Last I checked, a few tests failed:</p>
+<h2>
+<a id="known-issues" class="anchor" href="#known-issues" aria-hidden="true"><span class="octicon octicon-link"></span></a>Known Issues</h2>
 
 <ul>
-<li>dispatch_starfish</li>
-<li>dispatch_vnode</li>
-</ul><p>Test failure results are <a href="https://gist.github.com/3903724">here</a>. The dispatch_starfish failure can probably be ignored, but the dispatch_vnode failure seems to indicate some more serious issue, possibly a bug in libkqueue. It might be best to avoid using <code>dispatch_source_create()</code> with <code>DISPATCH_SOURCE_TYPE_VNODE</code> for now...</p>
+<li>2014-10-01 - Dispatch Sources of type <code>DISPATCH_SOURCE_TYPE_VNODE</code> are
+unreliable, and should be avoided for now.</li>
+</ul>
 
-<h2>Demo</h2>
+<h2>
+<a id="testing" class="anchor" href="#testing" aria-hidden="true"><span class="octicon octicon-link"></span></a>Testing</h2>
 
-<pre><code>cat &lt;&lt; "EOF" &gt; dispatch_test.c
-#include &lt;dispatch/dispatch.h&gt;
-#include &lt;stdio.h&gt;
+<p>See the <code>run-tests.py</code> script in <code>testing/</code>.</p>
 
-static void timer_did_fire(void *context) { printf("Strawberry fields...\n"); }
+<h2>
+<a id="demo" class="anchor" href="#demo" aria-hidden="true"><span class="octicon octicon-link"></span></a>Demo</h2>
 
-static void write_completion_handler(dispatch_data_t unwritten_data, int error, void *context) {
-    if (!unwritten_data &amp;&amp; error == 0)
-       printf("Dispatch I/O wrote everything to stdout. Hurrah.\n");
+<h3>
+<a id="foreverc" class="anchor" href="#foreverc" aria-hidden="true"><span class="octicon octicon-link"></span></a>forever.c</h3>
+
+<div class="highlight highlight-cpp"><pre>#<span class="pl-k">include</span> <span class="pl-s1"><span class="pl-pds">&lt;</span>dispatch/dispatch.h<span class="pl-pds">&gt;</span></span>
+#<span class="pl-k">include</span> <span class="pl-s1"><span class="pl-pds">&lt;</span>stdio.h<span class="pl-pds">&gt;</span></span>
+
+<span class="pl-s">static</span> <span class="pl-st">void</span> <span class="pl-en">timer_did_fire</span>(<span class="pl-st">void</span> *context) {
+    <span class="pl-s3">printf</span>(<span class="pl-s1"><span class="pl-pds">"</span>Strawberry fields...<span class="pl-cce">\n</span><span class="pl-pds">"</span></span>);
 }
 
-static void read_completion_handler(dispatch_data_t data, int error, void *context) {
-    int fd = (intptr_t)context;
-    close(fd);
+<span class="pl-st">int</span> <span class="pl-en">main</span>(<span class="pl-st">int</span> argc, <span class="pl-s">const</span> <span class="pl-st">char</span> *argv[]) {
+    <span class="pl-s3">dispatch_source_t</span> timer = <span class="pl-s3">dispatch_source_create</span>(
+        DISPATCH_SOURCE_TYPE_TIMER, <span class="pl-c1">0</span>, <span class="pl-c1">0</span>, <span class="pl-s3">dispatch_get_main_queue</span>());
 
-    dispatch_write_f_np(STDOUT_FILENO, data, dispatch_get_main_queue(),
-                        NULL, write_completion_handler);
-}
+    <span class="pl-s3">dispatch_source_set_event_handler_f</span>(timer, timer_did_fire);
+    <span class="pl-s3">dispatch_source_set_timer</span>(timer, DISPATCH_TIME_NOW, <span class="pl-c1">1</span> * NSEC_PER_SEC,
+                              <span class="pl-c1">0.5</span> * NSEC_PER_SEC);
+    <span class="pl-s3">dispatch_resume</span>(timer);
+    <span class="pl-s3">dispatch_main</span>();
+}</pre></div>
 
-int main(int argc, const char *argv[]) {
-    dispatch_source_t timer = dispatch_source_create(
-        DISPATCH_SOURCE_TYPE_TIMER, 0, 0, dispatch_get_main_queue());
+<pre><code>&gt; clang forever.c -I/usr/local/include -L/usr/local/lib -ldispatch -o forever
+&gt; ./forever
 
-    dispatch_source_set_event_handler_f(timer, timer_did_fire);
-    dispatch_source_set_timer(timer, DISPATCH_TIME_NOW, 1 * NSEC_PER_SEC,
-                              0.5 * NSEC_PER_SEC);
-    dispatch_resume(timer);
-
-    int fd = open("dispatch_test.c", O_RDONLY);
-
-    dispatch_read_f_np(fd, SIZE_MAX, dispatch_get_main_queue(), (void *)(intptr_t)fd,
-                    read_completion_handler);
-
-    dispatch_main();
-    return 0;
-}
-EOF
-
-clang dispatch_test.c -I/usr/local/include/dispatch -L/usr/local/lib -ldispatch -o dispatchTest
-./dispatchTest
+Strawberry fields...
+Strawberry fields...
+Strawberry fields...
+Strawberry fields...
+[...]
 </code></pre>
-      </section>
+
+<h2>
+<a id="credits" class="anchor" href="#credits" aria-hidden="true"><span class="octicon octicon-link"></span></a>Credits</h2>
+
+<p>This port was made possible by Mark Heily and others who contributed the
+<code>libpthread_workqueue</code> and <code>libkqueue</code> libraries that libdispatch depends on, as
+well as numerous portability patches floating around the official libdispatch
+mailing list, notably <a href="http://lists.macosforge.org/pipermail/libdispatch-dev/2012-August/000676.html">http://lists.macosforge.org/pipermail/libdispatch-dev/2012-August/000676.html</a>.</p>
+        </section>
+
+        <aside id="sidebar">
+          <a href="https://github.com/nickhutchinson/libdispatch/zipball/master" class="button">
+            <small>Download</small>
+            .zip file
+          </a>
+          <a href="https://github.com/nickhutchinson/libdispatch/tarball/master" class="button">
+            <small>Download</small>
+            .tar.gz file
+          </a>
+
+          <p class="repo-owner"><a href="https://github.com/nickhutchinson/libdispatch"></a> is maintained by <a href="https://github.com/nickhutchinson">nickhutchinson</a>.</p>
+
+          <p>This page was generated by <a href="https://pages.github.com">GitHub Pages</a> using the Architect theme by <a href="https://twitter.com/jasonlong">Jason Long</a>.</p>
+        </aside>
+      </div>
     </div>
-    <footer>
-      <p>Project maintained by <a href="https://github.com/nickhutchinson">nickhutchinson</a></p>
-      <p>Hosted on GitHub Pages &mdash; Theme by <a href="https://github.com/orderedlist">orderedlist</a></p>
-    </footer>
-    <!--[if !IE]><script>fixScale(document);</script><![endif]-->
+
+            <script type="text/javascript">
+            var gaJsHost = (("https:" == document.location.protocol) ? "https://ssl." : "http://www.");
+            document.write(unescape("%3Cscript src='" + gaJsHost + "google-analytics.com/ga.js' type='text/javascript'%3E%3C/script%3E"));
+          </script>
+          <script type="text/javascript">
+            try {
+              var pageTracker = _gat._getTracker("UA-36058538-1");
+            pageTracker._trackPageview();
+            } catch(err) {}
+          </script>
+
   </body>
 </html>
