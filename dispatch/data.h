@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2009-2011 Apple Inc. All rights reserved.
+ * Copyright (c) 2009-2013 Apple Inc. All rights reserved.
  *
  * @APPLE_APACHE_LICENSE_HEADER_START@
  *
@@ -83,6 +83,15 @@ DISPATCH_EXPORT struct dispatch_data_s _dispatch_data_empty;
 #define DISPATCH_DATA_DESTRUCTOR_FREE (_dispatch_data_destructor_free)
 __OSX_AVAILABLE_STARTING(__MAC_10_7,__IPHONE_5_0)
 DISPATCH_DATA_DESTRUCTOR_TYPE_DECL(free);
+
+/*!
+ * @const DISPATCH_DATA_DESTRUCTOR_MUNMAP
+ * @discussion The destructor for dispatch data objects that have been created
+ * from buffers that require deallocation with munmap(2).
+ */
+#define DISPATCH_DATA_DESTRUCTOR_MUNMAP (_dispatch_data_destructor_munmap)
+__OSX_AVAILABLE_STARTING(__MAC_10_9, __IPHONE_7_0)
+DISPATCH_DATA_DESTRUCTOR_TYPE_DECL(munmap);
 
 #ifdef __BLOCKS__
 /*!

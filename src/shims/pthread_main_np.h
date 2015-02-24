@@ -24,7 +24,7 @@
 
 #if !HAVE_PTHREAD_MAIN_NP
 
-#if __linux__
+#if TARGET_OS_LINUX
 #include <unistd.h>
 #include <sys/syscall.h>
 #include <sys/types.h>
@@ -33,7 +33,7 @@
 static inline int
 pthread_main_np()
 {
-#if __linux__
+#if TARGET_OS_LINUX
 	return syscall(SYS_gettid) == getpid() ? 1 : 0;
 #else
 #error "No suported way to determine if the current thread is the main thread."

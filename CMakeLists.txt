@@ -1,13 +1,15 @@
 cmake_minimum_required(VERSION 2.8.7)
 
 project (dispatch)
-set (DISPATCH_VERSION 0.1)
+set (DISPATCH_VERSION 0.2dev)
 set (DISPATCH_ABI_VERSION 1)
 
 list (APPEND CMAKE_MODULE_PATH "${dispatch_SOURCE_DIR}/cmake")
 include (BuildUtil)
 
+include (CheckPrototypeDefinition)
 include (CheckCCompilerFlag)
+include (CheckTypeSize)
 include (CheckCSourceCompiles)
 include (CMakePushCheckState)
 
@@ -27,6 +29,16 @@ set(USE_LIBDISPATCH_INIT_CONSTRUCTOR
 set (CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -std=gnu99")
 set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=gnu++98")
 add_definitions(-D_GNU_SOURCE)
+
+# Defines and compile flags
+if (CMAKE_BUILD_TYPE MATCHES Debug)
+  add_definitions(-DDISPATCH_DEBUG=1)
+endif ()
+
+if (CMAKE_C_COMPILER_ID MATCHES Clang)
+  add_definitions( -fcolor-diagnostics )
+endif ()
+
 #///////////////////////////////////////////////////////////////////////////////
 # Find libraries we will need
 
@@ -48,8 +60,6 @@ if (NOT COMPILER_HAS_BLOCKS_SUPPORT)
 endif ()
 
 #///////////////////////////////////////////////////////////////////////////////
-# Find functions and declarations we care about.
-
 dispatch_check_decls(CLOCK_UPTIME CLOCK_MONOTONIC INCLUDES time.h)
 dispatch_check_decls(NOTE_NONE NOTE_REAP NOTE_SIGNAL NOTE_REVOKE
     INCLUDES sys/event.h)
@@ -60,26 +70,67 @@ dispatch_check_decls(VQ_UPDATE VQ_VERYLOWDISK INCLUDES sys/mount.h)
 dispatch_check_decls(POSIX_SPAWN_SETEXEC POSIX_SPAWN_START_SUSPENDED
     INCLUDES sys/spawn.h)
 
+if (KQUEUE_INCLUDE_DIRS AND KQUEUE_LIBRARIES)
+  cmake_push_check_state()
+    set( CMAKE_REQUIRED_INCLUDES "${KQUEUE_INCLUDE_DIRS}" )
+    set( CMAKE_REQUIRED_LIBRARIES "${KQUEUE_LIBRARIES}" )
+    dispatch_check_decls(
+        EV_SET64 NOTE_NONE NOTE_REAP NOTE_REVOKE NOTE_SIGNAL
+        NOTE_LEEWAY NOTE_NSECONDS NOTE_ABSOLUTE
+        INCLUDES sys/event.h
+    )
+    check_type_size("struct kevent64_s" DECL_KEVENT64_S)
+    dispatch_check_funcs( kevent64 )
+  cmake_pop_check_state()
+endif ()
+
 cmake_push_check_state ()
     set (CMAKE_REQUIRED_DEFINITIONS -D_GNU_SOURCE)
     dispatch_check_decls(program_invocation_short_name INCLUDES errno.h)
 cmake_pop_check_state ()
 
-dispatch_check_funcs(pthread_key_init_np pthread_main_np
-     sysctlbyname sysconf getprogname
-     strlcpy asprintf)
+dispatch_check_funcs(
+    arc4random
+    asprintf
+    fgetln
+    getprogname
+    issetugid
+    mach_absolute_time
+    malloc_create_zone
+    pthread_key_init_np
+    pthread_main_np
+    strlcpy
+    sysconf
+    sysctlbyname
+    vasprintf
+ )
 
-dispatch_check_headers(sys/cdefs.h unistd.h)
+dispatch_check_headers(
+    CoreFoundation/CoreFoundation.h
+    crt_externs.h
+    fcntl.h
+    libkern/OSAtomic.h
+    libkern/OSByteOrder.h
+    libkern/OSCrossEndian.h
+    libproc/internal.h
+    malloc/malloc.h
+    pthread_machdep.h
+    pthread_np.h
+    sys/cdefs.h
+    sys/guarded.h
+    TargetConditionals.h
+    unistd.h
+)
 
 if (HAVE_UNISTD_H AND COMPILER_HAS_BLOCKS_SUPPORT)
     cmake_push_check_state()
         set(CMAKE_REQUIRED_DEFINITIONS -D_GNU_SOURCE)
         set(CMAKE_REQUIRED_FLAGS -fblocks)
         check_c_source_compiles("#include <unistd.h>\nint main(){}"
-            HAS_WORKING_UNISTD_H)
+          HAVE_WORKING_UNISTD_H)
     cmake_pop_check_state()
-    if (NOT HAS_WORKING_UNISTD_H)
-        set (HAS_PROBLEMATIC_UNISTD_H 1)
+    if (NOT HAVE_WORKING_UNISTD_H)
+        set (HAVE_PROBLEMATIC_UNISTD_H 1)
     endif ()
 endif ()
 
@@ -88,7 +139,14 @@ if (SUPPORTS_FVISIBILITY_HIDDEN)
   set (VISIBILITY_FLAGS "-fvisibility=hidden")
 endif ()
 
-set (USE_POSIX_SEM 1)
+# Test if __builtin_ffs() takes a signed argument.
+cmake_push_check_state()
+  check_c_source_compiles("int __builtin_ffs(int); int main(){}"
+    HAVE_WORKING_BUILTIN_FFS)
+cmake_pop_check_state()
+if (NOT HAVE_WORKING_BUILTIN_FFS)
+  set( HAVE_PROBLEMATIC_BUILTIN_FFS 1 )
+endif ()
 
 configure_file("config/config.h.cmake.in"
     "${dispatch_BINARY_DIR}/config/config.h"

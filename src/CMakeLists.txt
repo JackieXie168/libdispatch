@@ -1,7 +1,9 @@
 set (sources
+    allocator.c
     apply.c
     benchmark.c
     init.c
+    introspection.c
     object.c
     once.c
     queue.c
@@ -33,9 +35,26 @@ include_directories (
 add_definitions(
     -Wall
     -Wextra
-    -Wno-unused-parameter
     -fvisibility=default
 )
+
+if (CMAKE_C_COMPILER_ID MATCHES Clang)
+    add_definitions(
+        -Weverything
+        -Wno-language-extension-token
+        -Wno-undef
+        -Wno-pedantic
+        -Wno-cast-align
+        -Wno-vla
+        -Wno-padded
+        -Wno-bad-function-cast
+        -Wno-missing-noreturn
+        -Wno-format-nonliteral
+        -Wno-unreachable-code
+        -Wno-documentation
+        -Wno-disabled-macro-expansion
+    )
+endif ()
 
 if (CMAKE_C_COMPILER_ID MATCHES "GNU")
     add_definitions(-Wno-unknown-pragmas)
@@ -55,6 +74,7 @@ foreach (target libdispatch_shared libdispatch_static)
         ${BLOCKS_RUNTIME_LIBRARIES}
         rt
         -pthread
+        -Wl,-z,defs
     )
 endforeach ()
 

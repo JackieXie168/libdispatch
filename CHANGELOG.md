@@ -1,5 +1,8 @@
 # libdispatch for Linux - Changelog
 
+## 0.2.0 / Unreleased
+- Merge in Mavericks changes.
+
 ## 0.1.0 / 2015-02-22
 - Initial release.
 - [BUGFIX] dispatch io: improved handling of buffer allocation failures.

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2009-2010 Apple Inc. All rights reserved.
+ * Copyright (c) 2009-2013 Apple Inc. All rights reserved.
  *
  * @APPLE_APACHE_LICENSE_HEADER_START@
  *
@@ -302,7 +302,7 @@ typedef unsigned long dispatch_io_type_t;
  *	@param error		An errno condition if control is relinquished
  *				because channel creation failed, zero otherwise.
  * @result	The newly created dispatch I/O channel or NULL if an error
- *		occurred.
+ *		occurred (invalid type specified).
  */
 __OSX_AVAILABLE_STARTING(__MAC_10_7,__IPHONE_5_0)
 DISPATCH_EXPORT DISPATCH_MALLOC DISPATCH_RETURNS_RETAINED DISPATCH_WARN_RESULT
@@ -353,32 +353,32 @@ dispatch_io_create_f_np(dispatch_io_type_t type,
 
 #ifdef __BLOCKS__
 /*!
-* @function dispatch_io_create_with_path
-* Create a dispatch I/O channel associated with a path name. The specified
-* path, oflag and mode parameters will be passed to open(2) when the first I/O
-* operation on the channel is ready to execute and the resulting file
-* descriptor will remain open and under the control of the system until the
-* channel is closed, an error occurs on the file descriptor or all references
-* to the channel are released. At that time the file descriptor will be closed
-* and the specified cleanup handler will be enqueued.
-*
-* @param type	The desired type of I/O channel (DISPATCH_IO_STREAM
-*		or DISPATCH_IO_RANDOM).
-* @param path	The path to associate with the I/O channel.
-* @param oflag	The flags to pass to open(2) when opening the file at
-*		path.
-* @param mode	The mode to pass to open(2) when creating the file at
-*		path (i.e. with flag O_CREAT), zero otherwise.
-* @param queue	The dispatch queue to which the handler should be
-*		submitted.
-* @param cleanup_handler	The handler to enqueue when the system
-*				has closed the file at path.
-*	@param error		An errno condition if control is relinquished
-*				because channel creation or opening of the
-*				specified file failed, zero otherwise.
-* @result	The newly created dispatch I/O channel or NULL if an error
-*		occurred.
-*/
+ * @function dispatch_io_create_with_path
+ * Create a dispatch I/O channel associated with a path name. The specified
+ * path, oflag and mode parameters will be passed to open(2) when the first I/O
+ * operation on the channel is ready to execute and the resulting file
+ * descriptor will remain open and under the control of the system until the
+ * channel is closed, an error occurs on the file descriptor or all references
+ * to the channel are released. At that time the file descriptor will be closed
+ * and the specified cleanup handler will be enqueued.
+ *
+ * @param type	The desired type of I/O channel (DISPATCH_IO_STREAM
+ *		or DISPATCH_IO_RANDOM).
+ * @param path	The absolute path to associate with the I/O channel.
+ * @param oflag	The flags to pass to open(2) when opening the file at
+ *		path.
+ * @param mode	The mode to pass to open(2) when creating the file at
+ *		path (i.e. with flag O_CREAT), zero otherwise.
+ * @param queue	The dispatch queue to which the handler should be
+ *		submitted.
+ * @param cleanup_handler	The handler to enqueue when the system
+ *				has closed the file at path.
+ *	@param error		An errno condition if control is relinquished
+ *				because channel creation or opening of the
+ *				specified file failed, zero otherwise.
+ * @result	The newly created dispatch I/O channel or NULL if an error
+ *		occurred (invalid type or non-absolute path specified).
+ */
 __OSX_AVAILABLE_STARTING(__MAC_10_7,__IPHONE_5_0)
 DISPATCH_EXPORT DISPATCH_NONNULL2 DISPATCH_MALLOC DISPATCH_RETURNS_RETAINED
 DISPATCH_WARN_RESULT DISPATCH_NOTHROW
@@ -458,7 +458,7 @@ dispatch_io_create_with_path_f_np(dispatch_io_type_t type,
  *	@param error		An errno condition if control is relinquished
  *				because channel creation failed, zero otherwise.
  * @result	The newly created dispatch I/O channel or NULL if an error
- *		occurred.
+ *		occurred (invalid type specified).
  */
 __OSX_AVAILABLE_STARTING(__MAC_10_7,__IPHONE_5_0)
 DISPATCH_EXPORT DISPATCH_NONNULL2 DISPATCH_MALLOC DISPATCH_RETURNS_RETAINED
@@ -810,8 +810,8 @@ dispatch_io_close(dispatch_io_t channel, dispatch_io_close_flags_t flags);
  * While the barrier block is running, it may safely operate on the channel's
  * underlying file descriptor with fsync(2), lseek(2) etc. (but not close(2)).
  *
- * @param channel	The dispatch I/O channel to close.
- * @param barrier	The flags for the close operation.
+ * @param channel	The dispatch I/O channel to schedule the barrier on.
+ * @param barrier	The barrier block.
  */
 __OSX_AVAILABLE_STARTING(__MAC_10_7,__IPHONE_5_0)
 DISPATCH_EXPORT DISPATCH_NONNULL_ALL DISPATCH_NOTHROW

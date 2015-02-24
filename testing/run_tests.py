@@ -48,12 +48,12 @@ TESTS = [
     Test('timer_bit31',     'default'),
     Test('timer_bit63',     'default'),
     Test('timer_set_time',  'default'),
-    Test('timer_short',     'default'),
     Test('timer_timeout',   'default'),
     Test('vm',              'default'),
     Test('concur',          'slow'),
     Test('drift',           'slow'),
     Test('group',           'slow'),
+    Test('timer_short',     'slow'),
     Test('vnode',           'broken'),
 ]
 
