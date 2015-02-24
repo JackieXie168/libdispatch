@@ -1,7 +1,9 @@
 set (sources
+    allocator.c
     apply.c
     benchmark.c
     init.c
+    introspection.c
     object.c
     once.c
     queue.c
