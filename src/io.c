@@ -2122,9 +2122,8 @@ _dispatch_disk_perform(void *ctxt)
 static void
 _dispatch_operation_advise(dispatch_operation_t op, size_t chunk_size)
 {
-#ifdef F_RDADVISE
 	int err;
-	struct radvisory advise;
+	off_t advise_offset, advise_count;
 	// No point in issuing a read advise for the next chunk if we are already
 	// a chunk ahead from reading the bytes
 	if (op->advise_offset > (off_t)(((size_t)op->offset + op->total) +
@@ -2132,16 +2131,18 @@ _dispatch_operation_advise(dispatch_operation_t op, size_t chunk_size)
 		return;
 	}
 	_dispatch_object_debug(op, "%s", __func__);
-	advise.ra_count = (int)chunk_size;
+	advise_count = (off_t)chunk_size;
 	if (!op->advise_offset) {
 		op->advise_offset = op->offset;
 		// If this is the first time through, align the advised range to a
 		// page boundary
 		size_t pg_fraction = ((size_t)op->offset + chunk_size) % PAGE_SIZE;
-		advise.ra_count += (int)(pg_fraction ? PAGE_SIZE - pg_fraction : 0);
+		advise_count += (off_t)(pg_fraction ? PAGE_SIZE - pg_fraction : 0);
 	}
-	advise.ra_offset = op->advise_offset;
-	op->advise_offset += advise.ra_count;
+	advise_offset = op->advise_offset;
+	op->advise_offset += advise_count;
+#if HAVE_DECL_F_RDADVISE
+	struct radvisory advice = {advise_offset, advise_count};
 	_dispatch_io_syscall_switch(err,
 		fcntl(op->fd_entry->fd, F_RDADVISE, &advise),
 		case EFBIG: break; // advised past the end of the file rdar://10415691
@@ -2149,10 +2150,11 @@ _dispatch_operation_advise(dispatch_operation_t op, size_t chunk_size)
 		// TODO: set disk status on error
 		default: (void)dispatch_assume_zero(err); break;
 	);
-#else
-	(void)op;
-	(void)chunk_size;
-#endif /* F_RDADVISE */
+#elif HAVE_POSIX_FADVISE
+	err = posix_fadvise(op->fd_entry->fd, advise_offset, advise_count,
+						POSIX_FADV_WILLNEED);
+	(void)dispatch_assume_zero(err);
+#endif
 }
 
 static int

@@ -93,6 +93,10 @@
    don't. */
 #cmakedefine01 HAVE_DECL_CLOCK_UPTIME
 
+/* Define to 1 if you have the declaration of `F_RDADVISE', and to 0 if you
+   don't. */
+#cmakedefine01 HAVE_DECL_F_RDADVISE
+
 /* Define to 1 if you have the declaration of `FD_COPY', and to 0 if you don't.
    */
 #cmakedefine01 HAVE_DECL_FD_COPY
@@ -140,6 +144,9 @@
 
 /* Define to 1 if you have the `malloc_create_zone' function. */
 #cmakedefine01 HAVE_MALLOC_CREATE_ZONE
+
+/* Define to 1 if you have the `posix_fadvise' function. */
+#cmakedefine01 HAVE_POSIX_FADVISE
 
 /* Define to 1 if you have the `pthread_key_init_np' function. */
 #cmakedefine01 HAVE_PTHREAD_KEY_INIT_NP
