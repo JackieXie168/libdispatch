@@ -484,10 +484,10 @@ test_async_read(char *path, size_t size, int option, dispatch_queue_t queue,
 }
 
 static int
-test_read_dirs(char **paths, dispatch_queue_t queue, dispatch_group_t g,
-		dispatch_semaphore_t s, volatile int32_t *bytes, int option)
+test_read_dirs(const char **paths, dispatch_queue_t queue, dispatch_group_t g,
+		dispatch_semaphore_t s, volatile int64_t *bytes, int option)
 {
-	FTS *tree = fts_open(paths, FTS_PHYSICAL|FTS_XDEV, NULL);
+	FTS *tree = fts_open((char **)paths, FTS_PHYSICAL | FTS_XDEV, NULL);
 	if (!tree) {
 		test_ptr_notnull("fts_open failed", tree);
 		test_stop();
@@ -545,11 +545,11 @@ enum {
 static void
 test_read_many_files(void)
 {
-	char *paths[] = {"/usr/lib", NULL};
+	const char *paths[] = {"/usr/lib", NULL};
 	dispatch_group_t g = dispatch_group_create();
 	dispatch_semaphore_t s = dispatch_semaphore_create(maxopenfiles);
 	uint64_t start;
-	volatile int32_t bytes;
+	volatile int64_t bytes;
 	unsigned int files_read, i;
 
 	const dispatch_queue_t queues[] = {
@@ -594,12 +594,27 @@ test_read_many_files(void)
 		}
 	}
 	for (i = 0; i < sizeof(queues)/sizeof(dispatch_queue_t); ++i) {
-		fprintf(stdout, "%s:\n", names[i]);
+		fprintf(stdout, "\n%s:\n", names[i]);
+#ifdef __linux__
+		int drop_caches_fd = open("/proc/sys/vm/drop_caches", O_WRONLY);
+		if (drop_caches_fd != -1) {
+			char buf[] = "3";
+			write(drop_caches_fd, buf, sizeof(buf));
+			close(drop_caches_fd);
+		} else if (errno == EACCES || errno == EROFS) {
+			fprintf(stdout,
+					"WARNING: Not dropping fs caches; no permission to write "
+					"to /proc/sys/vm/drop_caches\n");
+		} else {
+			test_errno("drop_caches", errno, 0);
+		}
+#endif  // __linux__
 		bytes = 0;
 		start = _dispatch_monotonic_time();
 		files_read = test_read_dirs(paths, queues[i], g, s, &bytes, i);
-		double elapsed = (double)(_dispatch_monotonic_time() - start) / NSEC_PER_SEC;
-		double throughput = ((double)bytes / elapsed)/(1024 * 1024);
+		double elapsed =
+				(double)(_dispatch_monotonic_time() - start) / NSEC_PER_SEC;
+		double throughput = ((double)bytes / elapsed) / (1024 * 1024);
 		fprintf(stdout, "Total Files read: %u, Total MBytes %g, "
 				"Total time: %g s, Throughput: %g MB/s\n", files_read,
 				(double)bytes / (1024 * 1024), elapsed, throughput);
