@@ -2667,10 +2667,10 @@ _dispatch_queue_concurrent_drain_one_slow(dispatch_queue_t dq)
 		spins = DISPATCH_CONTENTION_SPINS_MIN +
 				(DISPATCH_CONTENTION_SPINS_MAX-DISPATCH_CONTENTION_SPINS_MIN)/2;
 #endif
-		while (spins--) {
+		for (; spins; --spins) {
 			dispatch_hardware_pause();
 			if (fastpath(dq->dq_items_head != mediator)) goto out;
-		};
+		}
 		// Since we have serious contention, we need to back off.
 		if (!pending) {
 			// Mark this queue as pending to avoid requests for further threads
