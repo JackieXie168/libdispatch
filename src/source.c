@@ -1713,12 +1713,16 @@ _dispatch_timers_program2(uint64_t nows[], struct kevent64_s *ke,
 		if (slowpath(_dispatch_timers_force_max_leeway)) {
 			ke->data = (int64_t)DISPATCH_DIV_CEIL(
 					delay + leeway, DISPATCH_EVFILT_TIMER_DIVISOR);
+#if HAVE_DECL_NOTE_LEEWAY
 			ke->ext[1] = 0;
+#endif
 		} else {
 			ke->data = (int64_t)DISPATCH_DIV_CEIL(
 					delay, DISPATCH_EVFILT_TIMER_DIVISOR);
+#if HAVE_DECL_NOTE_LEEWAY
 			ke->ext[1] =
 					DISPATCH_DIV_CEIL(leeway, DISPATCH_EVFILT_TIMER_DIVISOR);
+#endif
 		}
 		ke->flags |= EV_ADD|EV_ENABLE;
 		ke->flags &= ~EV_DELETE;
