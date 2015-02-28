@@ -1,16 +1,5 @@
 # testing/CMakeLists.txt
 ################################################################################
-
-if (NOT DISPATCH_ENABLE_TEST_SUITE)
-    return ()
-endif ()
-
-if (NOT COMPILER_HAS_BLOCKS_SUPPORT)
-    message(WARNING
-        "No compiler support for Blocks; test suite will not be built.")
-    return ()
-endif ()
-
 if (NOT CMAKE_VERSION VERSION_LESS 3.2)
     set (USES_TERMINAL_FLAG USES_TERMINAL)
 else ()
@@ -32,6 +21,17 @@ execute_process(
         "${CMAKE_CURRENT_BINARY_DIR}/dispatch"
 )
 
+include_directories(
+    ${dispatch_BINARY_DIR}
+    ${dispatch_SOURCE_DIR}
+
+    ${CMAKE_CURRENT_SOURCE_DIR}
+    ${CMAKE_CURRENT_BINARY_DIR}
+
+    ${KQUEUE_INCLUDE_DIRS}
+    ${BLOCKSRUNTIME_INCLUDE_DIRS}
+)
+
 add_library(bsdtests SHARED
     bsdtests.c
     bsdtests.h
@@ -45,16 +45,21 @@ add_library(bsdtests SHARED
     shims/fgetln.c
     shims/fgetln.h
 )
+target_link_libraries(bsdtests
+    LINK_PUBLIC -lm
+    LINK_PRIVATE libdispatch_shared ${KQUEUE_LIBRARIES}
+)
 
 function (dispatch_test test_name)
     if (ARGN)
         set (sources "${ARGN}")
     else ()
-        set (sources "${test_name}")
+        set (sources "${test_name}.c")
     endif ()
 
     add_executable("${test_name}" ${sources})
     add_dependencies(check "${test_name}")
+    target_link_libraries("${test_name}" libdispatch_shared bsdtests)
 endfunction ()
 
 add_definitions(
@@ -64,23 +69,12 @@ add_definitions(
     -fblocks
 )
 
-link_libraries(libdispatch_shared m bsdtests)
-
-include_directories(
-    ${dispatch_BINARY_DIR}
-    ${dispatch_SOURCE_DIR}
-    ${CMAKE_CURRENT_SOURCE_DIR}
-    ${CMAKE_CURRENT_BINARY_DIR}
-)
-
-include_directories(SYSTEM
-    ${KQUEUE_INCLUDE_DIRS}
-    ${PTHREAD_WORKQUEUE_INCLUDE_DIRS}
-    ${BLOCKS_RUNTIME_INCLUDE_DIRS}
-)
-
 add_executable(bsdtestharness bsdtestharness.c)
 add_executable(bsdtestsummarize bsdtestsummarize.c)
+foreach (target bsdtestharness bsdtestsummarize)
+    target_link_libraries("${target}" libdispatch_shared bsdtests)
+endforeach ()
+
 add_dependencies(check bsdtestharness bsdtestsummarize)
 
 dispatch_test( dispatch_after )
@@ -100,7 +94,7 @@ dispatch_test( dispatch_main_queue )
 dispatch_test( dispatch_np )
 dispatch_test( dispatch_overcommit )
 dispatch_test( dispatch_pingpong )
-dispatch_test( dispatch_plusplus )
+dispatch_test( dispatch_plusplus dispatch_plusplus.cpp)
 dispatch_test( dispatch_priority )
 
 dispatch_test( dispatch_priority2 dispatch_priority.c )

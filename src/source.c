@@ -1956,9 +1956,11 @@ _dispatch_kevent_debugger(void *context DISPATCH_UNUSED)
 	int val, r, fd, sock_opt = 1;
 	socklen_t slen = sizeof(sa_u);
 
+#if HAVE_ISSETUGID
 	if (issetugid()) {
 		return;
 	}
+#endif
 	valstr = getenv("LIBDISPATCH_DEBUGGER");
 	if (!valstr) {
 		return;

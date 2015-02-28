@@ -13,7 +13,6 @@ THIRD_PARTY = os.path.join(HERE, 'thirdparty')
 
 sys.path.insert(1, os.path.join(THIRD_PARTY, 'click'))
 import click
-del sys.path[1]
 
 
 def shelljoin(args):

@@ -4,6 +4,21 @@ include (CheckLibraryExists)
 include (CheckSymbolExists)
 include (CMakeParseArguments)
 
+find_package(PythonInterp REQUIRED)
+if (PYTHON_VERSION_STRING VERSION_LESS 2.6)
+    message(FATAL_ERROR "Python 2.6 or greater is required; found ${PYTHON_VERSION_STRING}")
+endif ()
+
+# dispatch_add_configure_depends
+# Adds the given arguments as depdencies of the configure stage. Newer versions
+# of CMake have a less hacky way to do this: the CMAKE_CONFIGURE_DEPENDS
+# directory property.
+function (dispatch_add_configure_depends arg1)
+    foreach (file "${arg1}" ${ARGN})
+        configure_file("${file}" "${file}" COPYONLY)
+    endforeach ()
+endfunction ()
+
 function (dispatch_check_decls)
     cmake_parse_arguments(args "REQUIRED" "" "INCLUDES" ${ARGN})
 

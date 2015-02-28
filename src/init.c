@@ -201,7 +201,7 @@ DISPATCH_VTABLE_INSTANCE(source,
 	.do_debug = _dispatch_source_debug,
 );
 
-#if WITH_DISPATCH_IO
+#ifdef __BLOCKS__
 
 DISPATCH_VTABLE_INSTANCE(data,
 	.do_type = DISPATCH_DATA_TYPE,
@@ -239,7 +239,7 @@ DISPATCH_VTABLE_INSTANCE(disk,
 	.do_debug = (void *)dummy_function_r0,
 );
 
-#endif  // WITH_DISPATCH_IO
+#endif  // __BLOCKS__
 
 void
 _dispatch_vtable_init(void)

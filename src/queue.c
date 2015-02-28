@@ -765,7 +765,7 @@ dispatch_set_target_queue(dispatch_object_t dou, dispatch_queue_t dq)
 		_dispatch_retain(dq);
 		return dispatch_barrier_async_f(dou._dq, dq,
 				_dispatch_set_target_queue2);
-#if WITH_DISPATCH_IO
+#ifdef __BLOCKS__
 	case _DISPATCH_IO_TYPE:
 		return _dispatch_io_set_target_queue(dou._dchannel, dq);
 #endif

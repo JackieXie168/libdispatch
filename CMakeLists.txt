@@ -9,104 +9,107 @@ include (BuildUtil)
 
 include (CheckCCompilerFlag)
 include (CheckCSourceCompiles)
+include (CheckTypeSize)
 include (CMakePushCheckState)
 
-#///////////////////////////////////////////////////////////////////////////////
 if (NOT CMAKE_BUILD_TYPE)
-    set (CMAKE_BUILD_TYPE MinSizeRel)
+    set (CMAKE_BUILD_TYPE Release)
+endif ()
+
+option (DISPATCH_ENABLE_TEST_SUITE
+    "Whether to build the test suite" NO)
+
+option (DISPATCH_ENABLE_BLOCKS
+    "Enable use of block-based API" YES)
+option (DISPATCH_ENABLE_PTHREAD_WORKQUEUE
+    "Enable use of the more efficient pthread workqueue library for thread pool support"
+    YES)
+option (DISPATCH_USE_LIBDISPATCH_INIT_CONSTRUCTOR
+    "Use libdispatch_init as a constructor" YES)
+
+if (NOT DISPATCH_ENABLE_PTHREAD_WORKQUEUE)
+    set (CMAKE_DISABLE_FIND_PACKAGE_pthread_workqueue 1)
+endif ()
+
+if (NOT DISPATCH_ENABLE_BLOCKS)
+    set (CMAKE_DISABLE_FIND_PACKAGE_BlocksRuntime 1)
 endif ()
 
 #///////////////////////////////////////////////////////////////////////////////
-option (DISPATCH_ENABLE_TEST_SUITE "Whether to build the test suite" NO)
-
-option (DISPATCH_USE_LIBDISPATCH_INIT_CONSTRUCTOR
-    "Use libdispatch_init as a constructor" YES)
-set(USE_LIBDISPATCH_INIT_CONSTRUCTOR
-    ${DISPATCH_USE_LIBDISPATCH_INIT_CONSTRUCTOR})
-#///////////////////////////////////////////////////////////////////////////////
+# Defines and compile flags
 set (CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -std=gnu99")
 set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=gnu++98")
 add_definitions(-D_GNU_SOURCE)
 
 if (DISPATCH_SANITIZE)
-  add_definitions(-g -fsanitize=${DISPATCH_SANITIZE})
-  link_libraries(-fsanitize=${DISPATCH_SANITIZE})
+    add_definitions( -g -fno-omit-frame-pointer )
+    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fsanitize=${DISPATCH_SANITIZE}")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fsanitize=${DISPATCH_SANITIZE}")
+else ()
+    set (CMAKE_SHARED_LINKER_FLAGS
+         "${CMAKE_SHARED_LINKER_FLAGS} -Wl,--no-undefined")
+endif ()
+
+if (CMAKE_BUILD_TYPE MATCHES Debug)
+    add_definitions(-DDISPATCH_DEBUG=1)
+endif ()
+
+if (CMAKE_C_COMPILER_ID MATCHES Clang)
+    add_definitions( -fcolor-diagnostics )
 endif ()
 
 #///////////////////////////////////////////////////////////////////////////////
-# Find libraries we will need
-
+# Libraries and compiler features
 find_package(kqueue REQUIRED)
 find_package(pthread_workqueue)
 find_package(BlocksRuntime)
 
-set (HAVE_PTHREAD_WORKQUEUES "${PTHREAD_WORKQUEUE_FOUND}")
-dispatch_search_libs(pthread_workqueue_setdispatch_np LIBRARIES
-    "${PTHREAD_WORKQUEUE_LIBRARIES}")
-
 check_c_compiler_flag(-fblocks COMPILER_HAS_BLOCKS_SUPPORT)
-check_c_compiler_flag("-momit-leaf-frame-pointer"
-    SUPPORTS_MOMIT_LEAF_FRAME_POINTER)
 
-if (NOT COMPILER_HAS_BLOCKS_SUPPORT)
-    message(WARNING "Blocks compiler support was not found; dispatch i/o "
-                    "will not be built.")
+if (PTHREAD_WORKQUEUE_FOUND)
+    dispatch_search_libs(pthread_workqueue_setdispatch_np LIBRARIES
+        "${PTHREAD_WORKQUEUE_LIBRARIES}")
+
+elseif (DISPATCH_ENABLE_PTHREAD_WORKQUEUE)
+    set(DISPATCH_ENABLE_PTHREAD_WORKQUEUE FALSE)
+    message(WARNING "Pthread Workqueues were not found; libdispatch will fall "
+                    "back to a less sophisticated (and slower) thread pool "
+                    "implementation.")
 endif ()
 
-#///////////////////////////////////////////////////////////////////////////////
-# Find functions and declarations we care about.
-
-dispatch_check_decls(CLOCK_UPTIME CLOCK_MONOTONIC INCLUDES time.h)
-dispatch_check_decls(NOTE_NONE NOTE_REAP NOTE_SIGNAL NOTE_REVOKE
-    INCLUDES sys/event.h)
-dispatch_check_decls(TAILQ_FOREACH_SAFE INCLUDES sys/queue.h)
-dispatch_check_decls(FD_COPY INCLUDES sys/select.h)
-dispatch_check_decls(SIGEMT INCLUDES signal.h)
-dispatch_check_decls(VQ_UPDATE VQ_VERYLOWDISK INCLUDES sys/mount.h)
-dispatch_check_decls(POSIX_SPAWN_SETEXEC POSIX_SPAWN_START_SUSPENDED
-    INCLUDES sys/spawn.h)
-
-cmake_push_check_state ()
-    set (CMAKE_REQUIRED_DEFINITIONS -D_GNU_SOURCE)
-    dispatch_check_decls(program_invocation_short_name INCLUDES errno.h)
-cmake_pop_check_state ()
-
-dispatch_check_funcs(pthread_key_init_np pthread_main_np
-     sysctlbyname sysconf getprogname
-     strlcpy asprintf)
-
-dispatch_check_headers(sys/cdefs.h unistd.h)
-
-if (HAVE_UNISTD_H AND COMPILER_HAS_BLOCKS_SUPPORT)
-    cmake_push_check_state()
-        set(CMAKE_REQUIRED_DEFINITIONS -D_GNU_SOURCE)
-        set(CMAKE_REQUIRED_FLAGS -fblocks)
-        check_c_source_compiles("#include <unistd.h>\nint main(){}"
-            HAS_WORKING_UNISTD_H)
-    cmake_pop_check_state()
-    if (NOT HAS_WORKING_UNISTD_H)
-        set (HAS_PROBLEMATIC_UNISTD_H 1)
-    endif ()
+if (DISPATCH_ENABLE_BLOCKS AND NOT COMPILER_HAS_BLOCKS_SUPPORT)
+    set(DISPATCH_ENABLE_BLOCKS FALSE)
+    message(WARNING "Blocks compiler support was not found; support for "
+                    "blocks-based API (including dispatch I/O) will be "
+                    "disabled.")
+elseif (DISPATCH_ENABLE_BLOCKS AND NOT BLOCKSRUNTIME_FOUND)
+    set(DISPATCH_ENABLE_BLOCKS FALSE)
+    message(WARNING "A blocks runtime was not found; support for blocks-based "
+                    "API (including dispatch I/O) will be disabled.")
 endif ()
 
-check_c_compiler_flag("-fvisibility=hidden" SUPPORTS_FVISIBILITY_HIDDEN)
-if (SUPPORTS_FVISIBILITY_HIDDEN)
-  set (VISIBILITY_FLAGS "-fvisibility=hidden")
+if (DISPATCH_ENABLE_BLOCKS)
+    add_definitions(-fblocks)
+elseif (COMPILER_HAS_BLOCKS_SUPPORT AND NOT DISPATCH_ENABLE_BLOCKS)
+    add_definitions(-fno-blocks)
 endif ()
 
-set (USE_FUTEX_SEM 1)
-
-configure_file("config/config.h.cmake.in"
-    "${dispatch_BINARY_DIR}/config/config.h"
-    @ONLY
-)
+add_subdirectory(config)
 
 #///////////////////////////////////////////////////////////////////////////////
 
 include_directories(SYSTEM fixincludes)
 
 add_subdirectory(src)
-add_subdirectory(testing)
+
+if (NOT DISPATCH_ENABLE_TEST_SUITE)
+    message(STATUS "Skipping test suite")
+elseif (NOT DISPATCH_ENABLE_BLOCKS)
+    message(WARNING "Cannot build test suite -- we need both a Blocks Runtime "
+                    "and compiler support for Blocks.")
+else ()
+    add_subdirectory(testing)
+endif ()
 
 # Install man pages
 add_subdirectory(man)
@@ -114,4 +117,3 @@ add_subdirectory(man)
 # Install public headers
 add_subdirectory(dispatch)
 add_subdirectory(os)
-

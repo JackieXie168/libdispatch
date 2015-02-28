@@ -3,22 +3,22 @@ include (CheckFunctionExists)
 
 find_package(Threads)
 
-find_path(KQUEUE_INCLUDE_DIRS sys/event.h PATH_SUFFIXES kqueue)
+find_path(KQUEUE_INCLUDE_DIR sys/event.h PATH_SUFFIXES kqueue)
+set(KQUEUE_INCLUDE_DIRS "${KQUEUE_INCLUDE_DIR}")
 
 check_function_exists(KQUEUE_IN_LIBC kqueue)
+find_library(KQUEUE_LIBRARY kqueue)
 
-if (KQUEUE_IN_LIBC)
-  set (_KQUEUE_LIB " ")
-else ()
-  find_library(_KQUEUE_LIB "kqueue")
-  mark_as_advanced(_KQUEUE_LIB)
+set(required_vars KQUEUE_INCLUDE_DIR)
+set(KQUEUE_LIBRARIES "")
+
+if (NOT KQUEUE_RUNTIME_IN_LIBC)
+  list(APPEND required_vars KQUEUE_LIBRARY)
+  if (KQUEUE_LIBRARY)
+    list(APPEND KQUEUE_LIBRARIES "${KQUEUE_LIBRARY};${CMAKE_THREAD_LIBS_INIT}")
+  endif ()
 endif ()
 
-set (KQUEUE_LIBRARIES "${_KQUEUE_LIB}" ${CMAKE_THREAD_LIBS_INIT}
-  CACHE STRING "Libraries to link libkqueue")
-
-find_package_handle_standard_args(kqueue DEFAULT_MSG
-  KQUEUE_LIBRARIES
-  KQUEUE_INCLUDE_DIRS
-  THREADS_FOUND
+find_package_handle_standard_args(kqueue
+  REQUIRED_VARS ${required_vars}
 )

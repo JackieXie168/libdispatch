@@ -10,13 +10,12 @@ set (sources
     time.c
 )
 
-if (COMPILER_HAS_BLOCKS_SUPPORT)
+if (DISPATCH_ENABLE_BLOCKS)
     list (APPEND sources
         data.c
         io.c
         transform.c
     )
-    add_definitions (-fblocks)
 endif ()
 
 include_directories (
@@ -26,9 +25,14 @@ include_directories (
     "${dispatch_SOURCE_DIR}/os"
 
     ${KQUEUE_INCLUDE_DIRS}
-    ${PTHREAD_WORKQUEUE_INCLUDE_DIRS}
-    ${BLOCKS_RUNTIME_INCLUDE_DIRS}
 )
+
+if (DISPATCH_ENABLE_PTHREAD_WORKQUEUE)
+    include_directories(${PTHREAD_WORKQUEUE_INCLUDE_DIRS})
+endif ()
+if (DISPATCH_ENABLE_BLOCKS)
+    include_directories(${BLOCKSRUNTIME_INCLUDE_DIRS})
+endif ()
 
 add_definitions(
     -Wall
@@ -41,32 +45,27 @@ if (CMAKE_C_COMPILER_ID MATCHES "GNU")
     add_definitions(-Wno-unknown-pragmas)
 endif ()
 
-if (SUPPORTS_MOMIT_LEAF_FRAME_POINTER)
-    add_definitions(-momit-leaf-frame-pointer)
-endif ()
-
 add_library(libdispatch_static STATIC ${sources})
 add_library(libdispatch_shared SHARED ${sources})
 
 foreach (target libdispatch_shared libdispatch_static)
-    target_link_libraries(${target}
-        ${PTHREAD_WORKQUEUE_LIBRARIES}
+    if (DISPATCH_ENABLE_BLOCKS)
+        target_link_libraries("${target}" LINK_PUBLIC ${BLOCKSRUNTIME_LIBRARIES})
+    endif ()
+    if (DISPATCH_ENABLE_PTHREAD_WORKQUEUE)
+        target_link_libraries("${target}" LINK_PRIVATE ${PTHREAD_WORKQUEUE_LIBRARIES})
+    endif ()
+    target_link_libraries(${target} LINK_PRIVATE
         ${KQUEUE_LIBRARIES}
-        ${BLOCKS_RUNTIME_LIBRARIES}
-        rt
+        -lrt
         -pthread
     )
-    if (NOT DISPATCH_SANITIZE)
-        target_link_libraries(${target} -Wl,-z,defs)
-    endif ()
 endforeach ()
 
-set_property(TARGET libdispatch_static libdispatch_shared PROPERTY
-    OUTPUT_NAME dispatch)
-
-set_target_properties(libdispatch_shared PROPERTIES 
-    SOVERSION ${DISPATCH_ABI_VERSION}
+set_target_properties(libdispatch_shared libdispatch_static PROPERTIES
     VERSION ${DISPATCH_VERSION}
+    SOVERSION ${DISPATCH_ABI_VERSION}
+    OUTPUT_NAME dispatch
 )
 
 install(
@@ -74,4 +73,3 @@ install(
     ARCHIVE DESTINATION lib
     LIBRARY DESTINATION lib
 )
-
