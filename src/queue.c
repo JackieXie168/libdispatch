@@ -1238,12 +1238,13 @@ _dispatch_queue_debug_attr(dispatch_queue_t dq, char* buf, size_t bufsiz)
 {
 	size_t offset = 0;
 	dispatch_queue_t target = dq->do_targetq;
-	offset += dsnprintf(buf, bufsiz, "target = %s[%p], width = 0x%x, "
-			"running = 0x%x, barrier = %d ", target && target->dq_label ?
-			target->dq_label : "", target, dq->dq_width / 2,
-			dq->dq_running / 2, dq->dq_running & 1);
+	offset += dsnprintf(
+			&buf[offset], bufsiz - offset,
+			"target = %s[%p], width = 0x%x, running = 0x%x, barrier = %d",
+			target && target->dq_label ? target->dq_label : "", target,
+			dq->dq_width / 2, dq->dq_running / 2, dq->dq_running & 1);
 	if (dq->dq_is_thread_bound) {
-		offset += dsnprintf(buf, bufsiz, ", thread = %p ",
+		offset += dsnprintf(&buf[offset], bufsiz-offset, ", thread = %p",
 							(void *)_dispatch_queue_get_bound_thread(dq));
 	}
 	return offset;
