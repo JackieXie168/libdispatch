@@ -74,8 +74,10 @@ foreach (target libdispatch_shared libdispatch_static)
         ${BLOCKS_RUNTIME_LIBRARIES}
         rt
         -pthread
-        -Wl,-z,defs
     )
+    if (NOT DISPATCH_SANITIZE)
+        target_link_libraries(${target} -Wl,-z,defs)
+    endif ()
 endforeach ()
 
 set_property(TARGET libdispatch_static libdispatch_shared PROPERTY

@@ -39,6 +39,11 @@ if (CMAKE_C_COMPILER_ID MATCHES Clang)
   add_definitions( -fcolor-diagnostics )
 endif ()
 
+if (DISPATCH_SANITIZE)
+  add_definitions(-fsanitize=${DISPATCH_SANITIZE})
+  link_libraries(-fsanitize=${DISPATCH_SANITIZE})
+endif ()
+
 #///////////////////////////////////////////////////////////////////////////////
 # Find libraries we will need
 
