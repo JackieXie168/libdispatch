@@ -49,10 +49,6 @@
 #include "shims/strlcpy.h"
 #endif
 
-#if TARGET_OS_LINUX
-#define USE_POSIX_SEM 1
-#endif
-
 #if !defined(DISPATCH_MACH_SPI) && TARGET_OS_MAC
 #define DISPATCH_MACH_SPI 1
 #endif

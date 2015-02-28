@@ -1,0 +1,77 @@
+---
+declarations:
+# kqueue decls
+  - kevent64_s
+  - EV_SET64
+  - NOTE_ABSOLUTE
+  - NOTE_LEEWAY
+  - NOTE_NONE
+  - NOTE_NSECONDS
+  - NOTE_REAP
+  - NOTE_REVOKE
+  - NOTE_SIGNAL
+  - VQ_UPDATE
+  - VQ_VERYLOWDISK
+# Other decls
+  - CLOCK_MONOTONIC
+  - CLOCK_UPTIME
+  - FD_COPY
+  - POSIX_SPAWN_SETEXEC
+  - POSIX_SPAWN_START_SUSPENDED
+  - program_invocation_short_name
+  - SIGEMT
+  - TAILQ_FOREACH_SAFE
+
+functions:
+  - arc4random
+  - asprintf
+  - fgetln
+  - getprogname
+  - issetugid
+  - kevent64
+  - mach_absolute_time
+  - malloc_create_zone
+  - pthread_key_init_np
+  - pthread_workqueue_setdispatch_np
+  - pthread_main_np
+  - strlcpy
+  - sysconf
+  - sysctlbyname
+  - vasprintf
+
+headers:
+  - CoreFoundation/CoreFoundation.h
+  - crt_externs.h
+  - fcntl.h
+  - libkern/OSAtomic.h
+  - libkern/OSByteOrder.h
+  - libkern/OSCrossEndian.h
+  - libproc/internal.h
+  - malloc/malloc.h
+  - pthread_machdep.h
+  - pthread_np.h
+  - sys/cdefs.h
+  - sys/guarded.h
+  - TargetConditionals.h
+  - unistd.h
+
+custom:
+  - HAVE_PROBLEMATIC_UNISTD_H:
+      Define if unistd.h needs special handling to compile using -fblocks; see
+      https://bugzilla.redhat.com/show_bug.cgi?id=1009623
+  - HAVE_PROBLEMATIC_BUILTIN_FFS:
+      Define if __builtin_ffs (incorrectly?) takes an unsigned argument.
+  - USE_LIBDISPATCH_INIT_CONSTRUCTOR:
+      Define to tag libdispatch_init as a constructor.
+  - HAVE_PTHREAD_WORKQUEUES:
+      Define if pthread work queues are present.
+  - USE_POSIX_SEM:
+      Define to use POSIX semaphores.
+
+# Darwin Specifics
+  - USE_MACH_SEM:
+      Define to use Mach semaphores.
+  - HAVE_LEAKS:
+      Define if Apple leaks program is present.
+  - HAVE_MACH:
+      Define if Mach is present.

@@ -148,6 +148,8 @@ if (NOT HAVE_WORKING_BUILTIN_FFS)
   set( HAVE_PROBLEMATIC_BUILTIN_FFS 1 )
 endif ()
 
+set( USE_POSIX_SEM 1 )
+
 configure_file("config/config.h.cmake.in"
     "${dispatch_BINARY_DIR}/config/config.h"
     @ONLY
