@@ -46,6 +46,7 @@
 #endif
 
 #if DISPATCH_USE_DIRECT_TSD
+#define DISPATCH_TSD_DEFINE(...)
 static const unsigned long dispatch_queue_key		= __PTK_LIBDISPATCH_KEY0;
 #if DISPATCH_USE_OS_SEMAPHORE_CACHE
 static const unsigned long dispatch_sema4_key		= __TSD_SEMAPHORE_CACHE;
@@ -61,6 +62,49 @@ static const unsigned long dispatch_introspection_key = __PTK_LIBDISPATCH_KEY5;
 static const unsigned long dispatch_bcounter_key	= __PTK_LIBDISPATCH_KEY5;
 #endif
 
+#elif TARGET_OS_LINUX
+#define DISPATCH_TSD_DECL(key_name)               \
+	extern __thread uintptr_t key_name##_storage; \
+	extern pthread_key_t key_name;                \
+	extern void (*key_name##_finalizer)(void *);  \
+	extern void key_name##_destructor(void *)
+
+#define DISPATCH_TSD_DEFINE(key_name)                                 \
+	void key_name##_destructor(void *p)                               \
+	{                                                                 \
+		(void) p;                                                     \
+		void *_val = _dispatch_thread_getspecific(key_name);          \
+		if (_val) key_name##_finalizer(_val);                         \
+	}                                                                 \
+	__thread __attribute__((                                          \
+			tls_model("initial-exec"))) uintptr_t key_name##_storage; \
+	pthread_key_t key_name;                                           \
+	void (*key_name##_finalizer)(void *)
+
+#else
+#define DISPATCH_TSD_DECL(key_name) extern pthread_key_t key_name
+#define DISPATCH_TSD_DEFINE(key_name) pthread_key_t key_name
+#endif
+
+#if !DISPATCH_USE_DIRECT_TSD
+DISPATCH_TSD_DECL(dispatch_queue_key);
+#if DISPATCH_USE_OS_SEMAPHORE_CACHE
+#error "Invalid DISPATCH_USE_OS_SEMAPHORE_CACHE configuration"
+#else
+DISPATCH_TSD_DECL(dispatch_sema4_key);
+#endif
+DISPATCH_TSD_DECL(dispatch_cache_key);
+DISPATCH_TSD_DECL(dispatch_io_key);
+DISPATCH_TSD_DECL(dispatch_apply_key);
+#if DISPATCH_INTROSPECTION
+DISPATCH_TSD_DECL(dispatch_introspection_key);
+#elif DISPATCH_PERF_MON
+DISPATCH_TSD_DECL(dispatch_bcounter_key);
+#endif
+#endif // !DISPATCH_USE_DIRECT_TSD
+
+#if TARGET_OS_MAC
+#if DISPATCH_USE_DIRECT_TSD
 DISPATCH_TSD_INLINE
 static inline void
 _dispatch_thread_key_create(const unsigned long *k, void (*d)(void *))
@@ -68,32 +112,15 @@ _dispatch_thread_key_create(const unsigned long *k, void (*d)(void *))
 	dispatch_assert_zero(pthread_key_init_np((int)*k, d));
 }
 #else
-extern pthread_key_t dispatch_queue_key;
-#if DISPATCH_USE_OS_SEMAPHORE_CACHE
-#error "Invalid DISPATCH_USE_OS_SEMAPHORE_CACHE configuration"
-#else
-extern pthread_key_t dispatch_sema4_key;
-#endif
-extern pthread_key_t dispatch_cache_key;
-extern pthread_key_t dispatch_io_key;
-extern pthread_key_t dispatch_apply_key;
-#if DISPATCH_INTROSPECTION
-extern pthread_key_t dispatch_introspection_key;
-#elif DISPATCH_PERF_MON
-extern pthread_key_t dispatch_bcounter_key;
-#endif
-
-
 DISPATCH_TSD_INLINE
 static inline void
-_dispatch_thread_key_create(pthread_key_t *k, void (*d)(void *))
+_dispatch_thread_key_create(pthread_key_t k, void (*d)(void *))
 {
 	dispatch_assert_zero(pthread_key_create(k, d));
 }
-#endif
+#endif // DISPATCH_USE_DIRECT_TSD
 
-#if DISPATCH_USE_TSD_BASE && !DISPATCH_DEBUG
-#else // DISPATCH_USE_TSD_BASE
+#if !DISPATCH_USE_TSD_BASE || DISPATCH_DEBUG
 DISPATCH_TSD_INLINE
 static inline void
 _dispatch_thread_setspecific(pthread_key_t k, void *v)
@@ -118,7 +145,48 @@ _dispatch_thread_getspecific(pthread_key_t k)
 #endif
 	return pthread_getspecific(k);
 }
-#endif // DISPATCH_USE_TSD_BASE
+#endif // !DISPATCH_USE_TSD_BASE || DISPATCH_DEBUG
+
+#elif TARGET_OS_LINUX
+#define _dispatch_thread_key_create(key_name, destructor)               \
+	do {                                                                \
+		*(key_name##_finalizer) = (destructor);                         \
+		dispatch_assert_zero(                                           \
+				pthread_key_create((key_name), key_name##_destructor)); \
+	} while (0)
+
+#define _dispatch_thread_getspecific(key_name) \
+	(void *)(key_name##_storage & ~(uintptr_t)1)
+
+#define _dispatch_thread_setspecific(key_name, v)                             \
+	do {                                                                      \
+		uintptr_t _old = key_name##_storage;                                  \
+		key_name##_storage = (uintptr_t)(v) | 1u;                             \
+		if (slowpath(_old == 0)) pthread_setspecific((key_name), (void *)1u); \
+	} while (0)
+
+#else
+DISPATCH_TSD_INLINE
+static inline void
+_dispatch_thread_key_create(pthread_key_t *k, void (*d)(void *))
+{
+	dispatch_assert_zero(pthread_key_create(k, d));
+}
+
+DISPATCH_TSD_INLINE
+static inline void
+_dispatch_thread_setspecific(pthread_key_t k, void *v)
+{
+	dispatch_assert_zero(pthread_setspecific(k, v));
+}
+
+DISPATCH_TSD_INLINE
+static inline void *
+_dispatch_thread_getspecific(pthread_key_t k)
+{
+	return pthread_getspecific(k);
+}
+#endif // TARGET_OS_MAC
 
 #if TARGET_OS_WIN32
 #define _dispatch_thread_self() ((uintptr_t)GetCurrentThreadId())

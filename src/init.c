@@ -65,18 +65,16 @@ void *(*_dispatch_begin_NSAutoReleasePool)(void);
 void (*_dispatch_end_NSAutoReleasePool)(void *);
 #endif
 
-#if !DISPATCH_USE_DIRECT_TSD
-pthread_key_t dispatch_queue_key;
-pthread_key_t dispatch_sema4_key;
-pthread_key_t dispatch_cache_key;
-pthread_key_t dispatch_io_key;
-pthread_key_t dispatch_apply_key;
+DISPATCH_TSD_DEFINE(dispatch_queue_key);
+DISPATCH_TSD_DEFINE(dispatch_sema4_key);
+DISPATCH_TSD_DEFINE(dispatch_cache_key);
+DISPATCH_TSD_DEFINE(dispatch_io_key);
+DISPATCH_TSD_DEFINE(dispatch_apply_key);
 #if DISPATCH_INTROSPECTION
-pthread_key_t dispatch_introspection_key;
+DISPATCH_TSD_DEFINE(dispatch_introspection_key);
 #elif DISPATCH_PERF_MON
-pthread_key_t dispatch_bcounter_key;
+DISPATCH_TSD_DEFINE(dispatch_bcounter_key);
 #endif
-#endif // !DISPATCH_USE_DIRECT_TSD
 
 struct _dispatch_hw_config_s _dispatch_hw_config;
 bool _dispatch_safe_fork = true, _dispatch_child_of_unsafe_fork;
