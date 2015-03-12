@@ -80,12 +80,10 @@ foreach (target libdispatch_shared libdispatch_static)
     endif ()
 endforeach ()
 
-set_property(TARGET libdispatch_static libdispatch_shared PROPERTY
-    OUTPUT_NAME dispatch)
-
-set_target_properties(libdispatch_shared PROPERTIES 
-    SOVERSION ${DISPATCH_ABI_VERSION}
+set_target_properties(libdispatch_shared libdispatch_static PROPERTIES
     VERSION ${DISPATCH_VERSION}
+    SOVERSION ${DISPATCH_ABI_VERSION}
+    OUTPUT_NAME dispatch
 )
 
 install(
@@ -93,4 +91,3 @@ install(
     ARCHIVE DESTINATION lib
     LIBRARY DESTINATION lib
 )
-
