@@ -35,7 +35,7 @@ include_directories (
 add_definitions(
     -Wall
     -Wextra
-    -fvisibility=default
+    -fvisibility=hidden
 )
 
 if (CMAKE_C_COMPILER_ID MATCHES Clang)
