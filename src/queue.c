@@ -2832,9 +2832,11 @@ _dispatch_worker_thread(void *context)
 	dispatch_root_queue_context_t qc = dq->do_ctxt;
 	dispatch_pthread_root_queue_context_t pqc = qc->dgq_ctxt;
 
+#ifdef __BLOCKS__
 	if (pqc && pqc->dpq_thread_configure) {
 		pqc->dpq_thread_configure();
 	}
+#endif
 
 	sigset_t mask;
 	int r;
