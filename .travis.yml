@@ -3,7 +3,13 @@ matrix:
     include:
         - compiler: clang
           env: DISPATCH_RUN_TESTS=1
+        - compiler: clang
+          env: DISPATCH_EXTRA_CONFIGURE_ARGS=--debug DISPATCH_RUN_TESTS=1 LIBDISPATCH_LOG=0
+        - compiler: clang
+          env: DISPATCH_EXTRA_CONFIGURE_ARGS="-- -DDISPATCH_SANITIZE=address,undefined" DISPATCH_RUN_TESTS=1
         - compiler: gcc
+        - compiler: gcc
+          env: DISPATCH_EXTRA_CONFIGURE_ARGS=--debug
 cache: apt
 before_install:
     - sudo apt-get update -qq
@@ -15,11 +21,12 @@ install:
             wbritish
 script:
     - mkdir build && cd build
-    - ../configure --enable-test-suite
+    - ../configure --enable-test-suite $DISPATCH_EXTRA_CONFIGURE_ARGS
     - make
     - sudo make install
     - |
         if [[ "$DISPATCH_RUN_TESTS" -eq 1 ]]; then
+            export LIBDISPATCH_LOG=${LIBDISPATCH_LOG:-stderr}
             ../testing/run_tests.py --permitted-failures=priority2,read2,apply --random-seed=$RANDOM testing
         fi
 

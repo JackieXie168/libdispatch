@@ -29,7 +29,7 @@ set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=gnu++98")
 add_definitions(-D_GNU_SOURCE)
 
 if (DISPATCH_SANITIZE)
-  add_definitions(-fsanitize=${DISPATCH_SANITIZE})
+  add_definitions(-g -fsanitize=${DISPATCH_SANITIZE})
   link_libraries(-fsanitize=${DISPATCH_SANITIZE})
 endif ()
 
