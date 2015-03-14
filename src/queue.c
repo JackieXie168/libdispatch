@@ -918,13 +918,17 @@ _dispatch_mgr_sched_init(void *ctxt DISPATCH_UNUSED)
 {
 	struct sched_param param;
 	pthread_attr_t *attr;
+	int priority, max_priority;
 	attr = &_dispatch_mgr_root_queue_pthread_context.dpq_thread_attr;
 	(void)dispatch_assume_zero(pthread_attr_init(attr));
 	(void)dispatch_assume_zero(pthread_attr_getschedpolicy(attr,
 			&_dispatch_mgr_sched.policy));
 	(void)dispatch_assume_zero(pthread_attr_getschedparam(attr, &param));
-	 // high-priority workq threads are at priority 2 above default
-	_dispatch_mgr_sched.prio = param.sched_priority + 2;
+	max_priority = sched_get_priority_max(_dispatch_mgr_sched.policy);
+	// Darwin: high-priority workq threads are at priority 2 above default
+	priority = param.sched_priority + 2;
+	_dispatch_mgr_sched.prio =
+			priority <= max_priority ? priority : max_priority;
 }
 
 DISPATCH_NOINLINE
