@@ -78,3 +78,6 @@ HAVE_LEAKS:
     Define if Apple leaks program is present.
 HAVE_MACH:
     Define if Mach is present.
+
+[epilogue]
+value: #define DISPATCH_BUILD_STRING "@DISPATCH_BUILD_STRING@"

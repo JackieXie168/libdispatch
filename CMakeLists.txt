@@ -76,6 +76,22 @@ if (CMAKE_C_COMPILER_ID MATCHES Clang)
     add_definitions( -fcolor-diagnostics )
 endif ()
 
+if (DISPATCH_VERSION MATCHES git)
+  set( DISPATCH_GIT_REF "" )
+  execute_process(
+      COMMAND git rev-parse --short HEAD
+      WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}"
+      OUTPUT_VARIABLE DISPATCH_GIT_REF
+      OUTPUT_STRIP_TRAILING_WHITESPACE
+  )
+  if (DISPATCH_GIT_REF)
+    string( REPLACE "git" "${DISPATCH_GIT_REF}"
+      DISPATCH_BUILD_STRING "${DISPATCH_VERSION}" )
+  endif ()
+else ()
+  set( DISPATCH_BUILD_STRING "${DISPATCH_VERSION}" )
+endif ()
+
 #///////////////////////////////////////////////////////////////////////////////
 # Libraries and compiler features
 check_c_compiler_flag(-fblocks COMPILER_SUPPORTS_BLOCKS)

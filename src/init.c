@@ -272,10 +272,7 @@ _dispatch_build_init(void *context DISPATCH_UNUSED)
 
 	sysctl(mib, 2, _dispatch_build, &bufsz, NULL, 0);
 #else
-	/*
-	 * XXXRW: What to do here for !Mac OS X?
-	 */
-	memset(_dispatch_build, 0, sizeof(_dispatch_build));
+	strlcpy(_dispatch_build, DISPATCH_BUILD_STRING, sizeof(_dispatch_build));
 #endif
 }
 
