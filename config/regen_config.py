@@ -38,6 +38,11 @@ def main(input_file, output_file):
         subsequent_indent=' ' * 3,
         break_long_words=False)
 
+    prologue = document.get('prologue', '')
+    if prologue:
+        output_file.write(prologue)
+        output_file.write('\n')
+
     for decl in document.get('headers', []):
         output_file.write('\n')
         output_file.write(wrapper.fill(
@@ -68,6 +73,11 @@ def main(input_file, output_file):
             output_file.write(wrapper.fill("/* %s */" % text))
             output_file.write('\n')
             output_file.write("#cmakedefine01 %s\n" % make_symbol(decl))
+
+    epilogue = document.get('epilogue', '')
+    if epilogue:
+        output_file.write('\n')
+        output_file.write(epilogue)
 
 if __name__ == '__main__':
     main()

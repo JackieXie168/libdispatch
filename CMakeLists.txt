@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 2.8.7)
 
 project (dispatch)
-set (DISPATCH_VERSION 0.2dev)
+set (DISPATCH_VERSION 0.2.git)
 set (DISPATCH_ABI_VERSION 1)
 
 list (APPEND CMAKE_MODULE_PATH "${dispatch_SOURCE_DIR}/cmake")
@@ -42,6 +42,22 @@ endif ()
 if (DISPATCH_SANITIZE)
   add_definitions(-g -fsanitize=${DISPATCH_SANITIZE})
   link_libraries(-fsanitize=${DISPATCH_SANITIZE})
+endif ()
+
+if (DISPATCH_VERSION MATCHES git)
+  set( DISPATCH_GIT_REF "" )
+  execute_process(
+      COMMAND git rev-parse --short HEAD
+      WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}"
+      OUTPUT_VARIABLE DISPATCH_GIT_REF
+      OUTPUT_STRIP_TRAILING_WHITESPACE
+  )
+  if (DISPATCH_GIT_REF)
+    string( REPLACE "git" "${DISPATCH_GIT_REF}"
+      DISPATCH_BUILD_STRING "${DISPATCH_VERSION}" )
+  endif ()
+else ()
+  set( DISPATCH_BUILD_STRING "${DISPATCH_VERSION}" )
 endif ()
 
 #///////////////////////////////////////////////////////////////////////////////

@@ -77,3 +77,7 @@ custom:
       Define if Apple leaks program is present.
   - HAVE_MACH:
       Define if Mach is present.
+
+prologue:
+epilogue: |
+  #define DISPATCH_BUILD_STRING "@DISPATCH_BUILD_STRING@"

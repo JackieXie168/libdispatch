@@ -193,3 +193,5 @@
 
 /* Define if Mach is present. */
 #cmakedefine01 HAVE_MACH
+
+#define DISPATCH_BUILD_STRING "@DISPATCH_BUILD_STRING@"
