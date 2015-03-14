@@ -40,7 +40,7 @@ if (CMAKE_C_COMPILER_ID MATCHES Clang)
 endif ()
 
 if (DISPATCH_SANITIZE)
-  add_definitions(-fsanitize=${DISPATCH_SANITIZE})
+  add_definitions(-g -fsanitize=${DISPATCH_SANITIZE})
   link_libraries(-fsanitize=${DISPATCH_SANITIZE})
 endif ()
 
