@@ -156,9 +156,9 @@ arc4_getword(as)
 {
 	uint32_t val;
 
-	val = arc4_getbyte(as) << 24;
-	val |= arc4_getbyte(as) << 16;
-	val |= arc4_getbyte(as) << 8;
+	val = (uint32_t)arc4_getbyte(as) << 24;
+	val |= (uint32_t)arc4_getbyte(as) << 16;
+	val |= (uint32_t)arc4_getbyte(as) << 8;
 	val |= arc4_getbyte(as);
 
 	return (val);

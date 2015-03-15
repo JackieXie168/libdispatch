@@ -199,9 +199,11 @@ first_bitmap_in_same_page(bitmap_t *b)
 #if DISPATCH_DEBUG
 	struct dispatch_magazine_s *m;
 	m = magazine_for_continuation((void*)b);
-	dispatch_assert(b >= &m->maps[0][0]);
-	dispatch_assert(b <  &m->maps[SUPERMAPS_PER_MAGAZINE]
-			[BITMAPS_PER_SUPERMAP]);
+	dispatch_assert((uintptr_t)b >= (uintptr_t)m->maps);
+	dispatch_assert((uintptr_t)b < (uintptr_t)m->maps + sizeof(m->maps));
+	dispatch_assert(
+			sizeof(m->maps) ==
+			(BITMAPS_PER_SUPERMAP * SUPERMAPS_PER_MAGAZINE * BYTES_PER_BITMAP));
 #endif
 	const uintptr_t PAGE_BITMAP_MASK = (BITMAPS_PER_PAGE *
 			BYTES_PER_BITMAP) - 1;
