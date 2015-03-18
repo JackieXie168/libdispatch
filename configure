@@ -38,6 +38,7 @@ def shelljoin(args):
               help='The CMake build system generator to use.')
 @click.option('--cmake', '--cmake-executable', default='cmake',
               type=click.Path(), show_default=True)
+@click.option('--with-sanitizers', 'clang_sanitizers', default='')
 @click.option('-n', '--dry-run', help="Don't actually invoke CMake.",
               is_flag=True)
 @click.argument('extra-cmake-args', nargs=-1)
@@ -51,6 +52,7 @@ def configure(
         cmake_generator,
         cmake_executable,
         dry_run,
+        clang_sanitizers,
         extra_cmake_args):
     """Script for configuring libdispatch's build."""
     command_line = []
@@ -64,6 +66,7 @@ def configure(
     command_line.append('-DCMAKE_CXX_COMPILER={0}'.format(cxx_compiler))
     command_line.append(
         '-DDISPATCH_ENABLE_TEST_SUITE={0}'.format(int(enable_test_suite)))
+    command_line.append('-DDISPATCH_SANITIZE={0}'.format(clang_sanitizers))
 
     command_line.append('--no-warn-unused-cli')
     command_line.append('--warn-uninitialized')
