@@ -2644,17 +2644,6 @@ void _dispatch_main_q_eventfd_init(void *ctxt DISPATCH_UNUSED)
 }
 #endif
 
-void
-dispatch_main(void)
-{
-	if (pthread_main_np()) {
-		_dispatch_program_is_probably_callback_driven = true;
-		pthread_exit(NULL);
-		DISPATCH_CRASH("pthread_exit() returned");
-	}
-	DISPATCH_CLIENT_CRASH("dispatch_main() must be called on the main thread");
-}
-
 DISPATCH_NOINLINE DISPATCH_NORETURN
 static void
 _dispatch_sigsuspend(void)
@@ -2669,6 +2658,22 @@ _dispatch_sigsuspend(void)
 	for (;;) {
 		sigsuspend(&mask);
 	}
+}
+
+void
+dispatch_main(void)
+{
+	if (pthread_main_np()) {
+		_dispatch_program_is_probably_callback_driven = true;
+#if __has_feature(address_sanitizer)
+		_dispatch_queue_cleanup(&_dispatch_main_q);
+		_dispatch_sigsuspend();
+#else
+		pthread_exit(NULL);
+#endif
+		DISPATCH_CRASH("pthread_exit() returned");
+	}
+	DISPATCH_CLIENT_CRASH("dispatch_main() must be called on the main thread");
 }
 
 DISPATCH_NORETURN
