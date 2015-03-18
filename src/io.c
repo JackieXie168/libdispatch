@@ -59,6 +59,7 @@ static void _dispatch_stream_cleanup_operations(dispatch_stream_t stream,
 static void _dispatch_disk_cleanup_operations(dispatch_disk_t disk,
 		dispatch_io_t channel);
 static void _dispatch_stream_source_handler(void *ctx);
+static void _dispatch_stream_queue_handler(void *ctx);
 static void _dispatch_stream_handler(void *ctx);
 static void _dispatch_disk_handler(void *ctx);
 static void _dispatch_disk_perform(void *ctxt);
@@ -75,7 +76,8 @@ static void _dispatch_operation_deliver_data(dispatch_operation_t op,
 		case EINTR: continue; \
 		__VA_ARGS__ \
 		} \
-	} while (0)
+		break; \
+	} while (1)
 #define _dispatch_io_syscall_switch(__err, __syscall, ...) do { \
 		_dispatch_io_syscall_switch_noerr(__err, __syscall, \
 		case 0: break; \
@@ -578,7 +580,7 @@ dispatch_io_set_interval(dispatch_io_t channel, uint64_t interval,
 	_dispatch_retain(channel);
 	dispatch_async(channel->queue, ^{
 		_dispatch_io_debug("io set interval", channel->fd);
-		channel->params.interval = interval;
+		channel->params.interval = interval < INT64_MAX ? interval : INT64_MAX;
 		channel->params.interval_flags = flags;
 		_dispatch_release(channel);
 	});
@@ -604,8 +606,8 @@ dispatch_io_get_descriptor(dispatch_io_t channel)
 		return -1;
 	}
 	dispatch_fd_t fd = channel->fd_actual;
-	if (fd == -1 &&
-			_dispatch_thread_getspecific(dispatch_io_key) == channel) {
+	if (fd == -1 && _dispatch_thread_getspecific(dispatch_io_key) == channel &&
+			!_dispatch_io_get_error(NULL, channel, false)) {
 		dispatch_fd_entry_t fd_entry = channel->fd_entry;
 		(void)_dispatch_fd_entry_open(fd_entry, channel);
 	}
@@ -674,10 +676,12 @@ dispatch_io_close(dispatch_io_t channel, unsigned long flags)
 			if (!(channel->atomic_flags & (DIO_CLOSED|DIO_STOPPED))) {
 				(void)dispatch_atomic_or2o(channel, atomic_flags, DIO_CLOSED);
 				dispatch_fd_entry_t fd_entry = channel->fd_entry;
-				if (!fd_entry->path_data) {
-					channel->fd_entry = NULL;
+				if (fd_entry) {
+					if (!fd_entry->path_data) {
+						channel->fd_entry = NULL;
+					}
+					_dispatch_fd_entry_release(fd_entry);
 				}
-				_dispatch_fd_entry_release(fd_entry);
 			}
 			_dispatch_release(channel);
 		});
@@ -1438,6 +1442,7 @@ _dispatch_stream_init(dispatch_fd_entry_t fd_entry, dispatch_queue_t tq)
 		stream = (dispatch_stream_t)calloc(1ul, sizeof(struct dispatch_stream_s));
 		stream->dq = dispatch_queue_create("com.apple.libdispatch-io.streamq",
 				NULL);
+		dispatch_set_context(stream->dq, stream);
 		_dispatch_retain(tq);
 		stream->dq->do_targetq = tq;
 		TAILQ_INIT(&stream->operations[DISPATCH_IO_RANDOM]);
@@ -1464,6 +1469,7 @@ _dispatch_stream_dispose(dispatch_fd_entry_t fd_entry,
 		dispatch_resume(stream->source);
 		dispatch_release(stream->source);
 	}
+	dispatch_set_context(stream->dq, NULL);
 	dispatch_release(stream->dq);
 	free(stream);
 }
@@ -1537,7 +1543,8 @@ _dispatch_stream_enqueue_operation(dispatch_stream_t stream,
 	bool no_ops = !_dispatch_stream_operation_avail(stream);
 	TAILQ_INSERT_TAIL(&stream->operations[op->params.type], op, operation_list);
 	if (no_ops) {
-		dispatch_async_f(stream->dq, stream, _dispatch_stream_handler);
+		dispatch_async_f(stream->dq, stream->dq,
+				_dispatch_stream_queue_handler);
 	}
 }
 
@@ -1746,6 +1753,18 @@ _dispatch_stream_source_handler(void *ctx)
 }
 
 static void
+_dispatch_stream_queue_handler(void *ctx)
+{
+	// On stream queue
+	dispatch_stream_t stream = (dispatch_stream_t)dispatch_get_context(ctx);
+	if (!stream) {
+		// _dispatch_stream_dispose has been called
+		return;
+	}
+	return _dispatch_stream_handler(stream);
+}
+
+static void
 _dispatch_stream_handler(void *ctx)
 {
 	// On stream queue
@@ -1774,7 +1793,8 @@ pick:
 		_dispatch_operation_deliver_data(op, DOP_DELIVER);
 	}
 	// TODO: perform on the operation target queue to get correct priority
-	int result = _dispatch_operation_perform(op), flags = -1;
+	int result = _dispatch_operation_perform(op);
+	dispatch_op_flags_t flags = ~0u;
 	switch (result) {
 	case DISPATCH_OP_DELIVER:
 		flags = DOP_DEFAULT;
@@ -1789,7 +1809,8 @@ pick:
 			_dispatch_stream_complete_operation(stream, op);
 		}
 		if (_dispatch_stream_operation_avail(stream)) {
-			dispatch_async_f(stream->dq, stream, _dispatch_stream_handler);
+			dispatch_async_f(stream->dq, stream->dq,
+					_dispatch_stream_queue_handler);
 		}
 		break;
 	case DISPATCH_OP_COMPLETE_RESUME:
