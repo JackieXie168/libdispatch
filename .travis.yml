@@ -26,7 +26,9 @@ script:
     - sudo make install
     - |
         if [[ "$DISPATCH_RUN_TESTS" -eq 1 ]]; then
+            export DISPATCH_TEST_PERMITTED_FAILURES=priority2,read2,apply
+            export DISPATCH_TEST_RANDOM_SEED=$RANDOM
             export LIBDISPATCH_LOG=${LIBDISPATCH_LOG:-stderr}
-            ../testing/run_tests.py --permitted-failures=priority2,read2,apply --random-seed=$RANDOM testing
+            make check
         fi
 
