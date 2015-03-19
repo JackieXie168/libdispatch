@@ -190,5 +190,5 @@ def cli(test_groups, tests, permitted_failures, test_folder, random_seed):
 
 
 if __name__ == '__main__':
-    cli.main()
+    cli.main(auto_envvar_prefix='DISPATCH_TEST')
 
