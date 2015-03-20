@@ -38,7 +38,8 @@ def shelljoin(args):
               help='The CMake build system generator to use.')
 @click.option('--cmake', '--cmake-executable', default='cmake',
               type=click.Path(), show_default=True)
-@click.option('--with-sanitizers', 'clang_sanitizers', default='')
+@click.option('--with-sanitizers', 'clang_sanitizers', default='',
+              envvar='DISPATCH_SANITIZE')
 @click.option('-n', '--dry-run', help="Don't actually invoke CMake.",
               is_flag=True)
 @click.argument('extra-cmake-args', nargs=-1)
@@ -89,5 +90,5 @@ def configure(
 
 
 if __name__ == '__main__':
-    configure()
+    configure(auto_envvar_prefix='DISPATCH')
 
