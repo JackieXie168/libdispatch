@@ -2,14 +2,14 @@ language: cpp
 matrix:
     include:
         - compiler: clang
-          env: DISPATCH_RUN_TESTS=1
+          env: DISPATCH_ENABLE_TEST_SUITE=1
         - compiler: clang
-          env: DISPATCH_EXTRA_CONFIGURE_ARGS=--debug DISPATCH_RUN_TESTS=1 LIBDISPATCH_LOG=0
+          env: DISPATCH_BUILD_TYPE=Debug DISPATCH_ENABLE_TEST_SUITE=1
         - compiler: clang
-          env: DISPATCH_EXTRA_CONFIGURE_ARGS="-- -DDISPATCH_SANITIZE=address,undefined" DISPATCH_RUN_TESTS=1
+          env: DISPATCH_SANITIZE=address,undefined DISPATCH_ENABLE_TEST_SUITE=1
         - compiler: gcc
         - compiler: gcc
-          env: DISPATCH_EXTRA_CONFIGURE_ARGS=--debug
+          env: DISPATCH_BUILD_TYPE=Debug
 cache: apt
 before_install:
     - sudo apt-get update -qq
@@ -21,14 +21,18 @@ install:
             wbritish
 script:
     - mkdir build && cd build
-    - ../configure --enable-test-suite $DISPATCH_EXTRA_CONFIGURE_ARGS
+    - ../configure
     - make
     - sudo make install
     - |
-        if [[ "$DISPATCH_RUN_TESTS" -eq 1 ]]; then
+        if [[ $DISPATCH_ENABLE_TEST_SUITE -eq 1 ]]; then
             export DISPATCH_TEST_PERMITTED_FAILURES=priority2,read2,apply
             export DISPATCH_TEST_RANDOM_SEED=$RANDOM
-            export LIBDISPATCH_LOG=${LIBDISPATCH_LOG:-stderr}
+            if [[ $DISPATCH_BUILD_TYPE == "Debug" ]]; then
+                export LIBDISPATCH_LOG=0
+            else
+                export LIBDISPATCH_LOG=${LIBDISPATCH_LOG:-stderr}
+            fi
             make check
         fi
 
