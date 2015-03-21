@@ -76,8 +76,8 @@ DISPATCH_TSD_DEFINE(dispatch_introspection_key);
 DISPATCH_TSD_DEFINE(dispatch_bcounter_key);
 #endif
 
-struct _dispatch_hw_config_s _dispatch_hw_config;
-bool _dispatch_safe_fork = true, _dispatch_child_of_unsafe_fork;
+struct _dispatch_hw_config_s _dispatch_hw_config = {0, 0, 0};
+bool _dispatch_safe_fork = true, _dispatch_child_of_unsafe_fork = false;
 
 DISPATCH_NOINLINE
 bool
