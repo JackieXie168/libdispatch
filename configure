@@ -11,6 +11,8 @@ HERE = os.path.dirname(__file__)
 SOURCE_TREE = HERE
 THIRD_PARTY = os.path.join(HERE, 'thirdparty')
 
+DEVNULL = open(os.devnull, 'wb')
+
 sys.path.insert(1, os.path.join(THIRD_PARTY, 'click'))
 import click
 
@@ -38,9 +40,22 @@ def shelljoin(args):
 @click.option('--cmake', '--cmake-executable', default='cmake',
               type=click.Path(), show_default=True)
 @click.option('--with-sanitizers', 'clang_sanitizers', default='',
-              envvar='DISPATCH_SANITIZE')
+              envvar='DISPATCH_SANITIZE',
+              help='List of Clang sanitizers to enable.')
 @click.option('-n', '--dry-run', help="Don't actually invoke CMake.",
               is_flag=True)
+@click.option(
+    '--system-blocks-runtime', is_flag=True, default=False,
+    help="Use the system-provided libBlocksRuntime instead of the one that "
+    "comes with libdispatch.")
+@click.option(
+    '--system-kqueue', is_flag=True, default=False,
+    help="Use the system-provided libkqueue instead of the one that comes "
+    "with libdispatch. *Not recommended nor supported.*")
+@click.option(
+    '--system-pthread-workqueue', is_flag=True, default=False,
+    help="Use the system-provided libBlocksRuntime instead of the one that "
+    "comes with libdispatch. *Not recommended nor supported.*")
 @click.argument('extra-cmake-args', nargs=-1)
 def configure(
         ctx,
@@ -53,24 +68,33 @@ def configure(
         cmake_executable,
         dry_run,
         clang_sanitizers,
+        system_blocks_runtime,
+        system_kqueue,
+        system_pthread_workqueue,
         extra_cmake_args):
     """Script for configuring libdispatch's build."""
     command_line = []
-    command_line.extend([cmake_executable,
-                         SOURCE_TREE,
-                         '-DCMAKE_BUILD_TYPE={0}'.format(build_type),
-                         '-G{0}'.format(cmake_generator)])
+    command_line.extend([
+        cmake_executable,
+        SOURCE_TREE,
+        '-G{0}'.format(cmake_generator),
+        '-DCMAKE_BUILD_TYPE={0}'.format(build_type),
+        '-DCMAKE_INSTALL_PREFIX={0}'.format(prefix),
+        '-DCMAKE_C_COMPILER={0}'.format(c_compiler),
+        '-DCMAKE_CXX_COMPILER={0}'.format(cxx_compiler),
+        '-DCMAKE_EXPORT_COMPILE_COMMANDS=1',
 
-    command_line.append('-DCMAKE_INSTALL_PREFIX={0}'.format(prefix))
-    command_line.append('-DCMAKE_C_COMPILER={0}'.format(c_compiler))
-    command_line.append('-DCMAKE_CXX_COMPILER={0}'.format(cxx_compiler))
-    command_line.append(
-        '-DDISPATCH_ENABLE_TEST_SUITE={0}'.format(int(enable_test_suite)))
-    command_line.append('-DDISPATCH_SANITIZE={0}'.format(clang_sanitizers))
+        '-DDISPATCH_ENABLE_TEST_SUITE={0}'.format(int(enable_test_suite)),
+        '-DDISPATCH_SANITIZE={0}'.format(clang_sanitizers),
+        '-DDISPATCH_USE_PRIVATE_BLOCKSRUNTIME={0}'.format(
+            int(not system_blocks_runtime)),
+        '-DDISPATCH_USE_PRIVATE_PTHREAD_WORKQUEUE={0}'.format(
+            int(not system_pthread_workqueue)),
+        '-DDISPATCH_USE_PRIVATE_KQUEUE={0}'.format(int(not system_kqueue)),
 
-    command_line.append('--no-warn-unused-cli')
-    command_line.append('--warn-uninitialized')
-    command_line.append('-DCMAKE_EXPORT_COMPILE_COMMANDS=ON')
+        '--no-warn-unused-cli',
+        '--warn-uninitialized',
+    ])
 
     command_line.extend(extra_cmake_args)
 
@@ -90,4 +114,3 @@ def configure(
 
 if __name__ == '__main__':
     configure(auto_envvar_prefix='DISPATCH')
-

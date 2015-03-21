@@ -10,6 +10,7 @@ include (BuildUtil)
 include (CheckCCompilerFlag)
 include (CheckCSourceCompiles)
 include (CheckTypeSize)
+include (CMakeDependentOption)
 include (CMakePushCheckState)
 
 if (NOT CMAKE_BUILD_TYPE)
@@ -17,15 +18,31 @@ if (NOT CMAKE_BUILD_TYPE)
 endif ()
 
 option (DISPATCH_ENABLE_TEST_SUITE
-    "Whether to build the test suite" NO)
+    "Whether to build the test suite" FALSE)
 
 option (DISPATCH_ENABLE_BLOCKS
-    "Enable use of block-based API" YES)
+    "Enable use of block-based API" TRUE)
 option (DISPATCH_ENABLE_PTHREAD_WORKQUEUE
     "Enable use of the more efficient pthread workqueue library for thread pool support"
-    YES)
+    TRUE)
+cmake_dependent_option(
+    DISPATCH_USE_PRIVATE_BLOCKSRUNTIME
+    "Whether to use libdispatch's private blocks runtime"
+    TRUE
+    DISPATCH_ENABLE_BLOCKS
+    FALSE)
+cmake_dependent_option(
+    DISPATCH_USE_PRIVATE_PTHREAD_WORKQUEUE
+    "Whether to use libdispatch's private pthread workqueues implementation"
+    TRUE
+    DISPATCH_ENABLE_PTHREAD_WORKQUEUE
+    FALSE)
+option (DISPATCH_USE_PRIVATE_KQUEUE
+    "Whether to use libdispatch's private kqueue implementation"
+    TRUE)
+
 option (DISPATCH_USE_LIBDISPATCH_INIT_CONSTRUCTOR
-    "Use libdispatch_init as a constructor" YES)
+    "Use libdispatch_init as a constructor" TRUE)
 
 if (NOT DISPATCH_ENABLE_PTHREAD_WORKQUEUE)
     set (CMAKE_DISABLE_FIND_PACKAGE_pthread_workqueue 1)
@@ -60,37 +77,78 @@ endif ()
 
 #///////////////////////////////////////////////////////////////////////////////
 # Libraries and compiler features
-find_package(kqueue REQUIRED)
-find_package(pthread_workqueue)
-find_package(BlocksRuntime)
+check_c_compiler_flag(-fblocks COMPILER_SUPPORTS_BLOCKS)
 
-check_c_compiler_flag(-fblocks COMPILER_HAS_BLOCKS_SUPPORT)
+if (DISPATCH_USE_PRIVATE_KQUEUE)
+    dispatch_add_subproject(kqueue
+        SOURCE_DIR thirdparty/libkqueue
+        INSTALL_PREFIX thirdparty/kqueue-subproject
+        LIBRARY lib/libkqueue.a
+        INCLUDE_DIR include/kqueue)
 
-if (PTHREAD_WORKQUEUE_FOUND)
-    dispatch_search_libs(pthread_workqueue_setdispatch_np LIBRARIES
-        "${PTHREAD_WORKQUEUE_LIBRARIES}")
+else ()
+    find_package(kqueue REQUIRED)
+    cmake_push_check_state()
+        set( CMAKE_REQUIRED_INCLUDES "${KQUEUE_INCLUDE_DIRS}" )
+        set( CMAKE_REQUIRED_LIBRARIES "${KQUEUE_LIBRARIES}" )
+        # FIXME: When using bundled kqueue, we should set these feature
+        # detection macros.
+        dispatch_check_decls(
+            EV_SET64 NOTE_NONE NOTE_REAP NOTE_REVOKE NOTE_SIGNAL
+            NOTE_LEEWAY NOTE_NSECONDS NOTE_ABSOLUTE
+            INCLUDES sys/event.h
+        )
+        check_type_size("struct kevent64_s" DECL_KEVENT64_S)
+        dispatch_check_funcs( kevent64 )
+    cmake_pop_check_state()
+endif()
+
+if (DISPATCH_USE_PRIVATE_PTHREAD_WORKQUEUE)
+    dispatch_add_subproject(pthread_workqueue
+        SOURCE_DIR thirdparty/libpthread_workqueue
+        INSTALL_PREFIX thirdparty/pthread_workqueue-subproject
+        LIBRARY lib/libpthread_workqueue.a
+        LIBRARY_DEBUG lib/libpthread_workqueueD.a)
 
 elseif (DISPATCH_ENABLE_PTHREAD_WORKQUEUE)
-    set(DISPATCH_ENABLE_PTHREAD_WORKQUEUE FALSE)
-    message(WARNING "Pthread Workqueues were not found; libdispatch will fall "
-                    "back to a less sophisticated (and slower) thread pool "
-                    "implementation.")
+    find_package(pthread_workqueue)
+
+    if (PTHREAD_WORKQUEUE_FOUND)
+        dispatch_search_libs(pthread_workqueue_setdispatch_np LIBRARIES
+            "${PTHREAD_WORKQUEUE_LIBRARIES}")
+    else ()
+        set(DISPATCH_ENABLE_PTHREAD_WORKQUEUE FALSE)
+        message(WARNING "Pthread Workqueues were not found; libdispatch will "
+                        "fall back to its naive thread pool implementation.")
+    endif ()
 endif ()
 
-if (DISPATCH_ENABLE_BLOCKS AND NOT COMPILER_HAS_BLOCKS_SUPPORT)
+if (DISPATCH_ENABLE_BLOCKS AND NOT COMPILER_SUPPORTS_BLOCKS)
     set(DISPATCH_ENABLE_BLOCKS FALSE)
     message(WARNING "Blocks compiler support was not found; support for "
                     "blocks-based API (including dispatch I/O) will be "
                     "disabled.")
-elseif (DISPATCH_ENABLE_BLOCKS AND NOT BLOCKSRUNTIME_FOUND)
-    set(DISPATCH_ENABLE_BLOCKS FALSE)
-    message(WARNING "A blocks runtime was not found; support for blocks-based "
-                    "API (including dispatch I/O) will be disabled.")
+
+elseif (DISPATCH_USE_PRIVATE_BLOCKSRUNTIME)
+    dispatch_add_subproject(blocksRuntime
+        SOURCE_DIR thirdparty/libBlocksRuntime
+        INSTALL_PREFIX thirdparty/blocksRuntime-subproject
+        LIBRARY lib/libBlocksRuntime.a
+        INCLUDE_DIR include/Blocks)
+
+elseif (DISPATCH_ENABLE_BLOCKS)
+    find_package(BlocksRuntime)
+    if (NOT BLOCKSRUNTIME_FOUND)
+        set(DISPATCH_ENABLE_BLOCKS FALSE)
+        message(WARNING "A blocks runtime was not found; support for "
+                        "blocks-based API (including dispatch I/O) will be "
+                        "disabled.")
+    endif ()
 endif ()
 
 if (DISPATCH_ENABLE_BLOCKS)
     add_definitions(-fblocks)
-elseif (COMPILER_HAS_BLOCKS_SUPPORT AND NOT DISPATCH_ENABLE_BLOCKS)
+elseif (COMPILER_SUPPORTS_BLOCKS AND NOT DISPATCH_ENABLE_BLOCKS)
     add_definitions(-fno-blocks)
 endif ()
 

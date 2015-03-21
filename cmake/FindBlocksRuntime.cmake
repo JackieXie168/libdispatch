@@ -34,4 +34,3 @@ endif ()
 
 find_package_handle_standard_args(BlocksRuntime
   REQUIRED_VARS ${required_vars})
-

@@ -67,6 +67,7 @@ set_target_properties(libdispatch_shared libdispatch_static PROPERTIES
     SOVERSION ${DISPATCH_ABI_VERSION}
     OUTPUT_NAME dispatch
 )
+set_property(TARGET libdispatch_static APPEND PROPERTY COMPILE_FLAGS -fPIC)
 
 install(
     TARGETS libdispatch_shared libdispatch_static
