@@ -258,3 +258,53 @@ function (dispatch_add_subproject name)
     set("${uppercase_name}_INCLUDE_DIRS" "${include_dir}" PARENT_SCOPE)
     set("${uppercase_name}_LIBRARIES" "${name}" PARENT_SCOPE)
 endfunction()
+
+function (dispatch_partial_link target)
+    cmake_parse_arguments(args
+        ""
+        "GLOBAL_SYMBOL_REGEX"
+        ""
+        ${ARGV})
+
+    set (env
+        CC=${CMAKE_C_COMPILER}
+        CFLAGS=${CMAKE_C_FLAGS}
+        OBJDUMP=${CMAKE_OBJDUMP}
+        NM=${CMAKE_NM}
+        OBJCOPY=${CMAKE_OBJCOPY}
+        AR=${CMAKE_AR}
+        RANLIB=${CMAKE_RANLIB}
+    )
+
+    set(script_path "${dispatch_SOURCE_DIR}/scripts/partial_link_archive.py")
+    set(command env ${env} ${PYTHON_EXECUTABLE}
+        "${script_path}" -o "$<TARGET_FILE:${target}>")
+
+    if (args_GLOBAL_SYMBOL_REGEX)
+        list(APPEND command --global-symbol-regex "${args_GLOBAL_SYMBOL_REGEX}")
+    endif ()
+
+    foreach (t IN LISTS args_UNPARSED_ARGUMENTS)
+        if (TARGET "${t}")
+            list(APPEND command "$<TARGET_FILE:${t}>")
+        else ()
+            list(APPEND command "${t}")
+        endif ()
+    endforeach ()
+
+    add_custom_command(
+        TARGET ${target}
+        POST_BUILD COMMAND ${command}
+        VERBATIM)
+    dispatch_add_file_dependencies("${target}" "${script_path}")
+endfunction ()
+
+function( dispatch_add_file_dependencies target)
+    # XXX Ideally we'd use LINK_DEPENDS on the target, but we instead hang the
+    # dependency off a source file due to a CMake bug where LINK_DEPENDS is
+    # ignored.
+    get_property(sources TARGET ${target} PROPERTY SOURCES)
+    list(GET sources 0 first_source_file)
+    set_property(SOURCE "${first_source_file}" APPEND PROPERTY
+        OBJECT_DEPENDS ${ARGN})
+endfunction ()

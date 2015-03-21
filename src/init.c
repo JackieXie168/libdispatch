@@ -88,7 +88,7 @@ pthread_key_t dispatch_bcounter_key;
 #endif
 #endif // !DISPATCH_USE_DIRECT_TSD
 
-struct _dispatch_hw_config_s _dispatch_hw_config;
+struct _dispatch_hw_config_s _dispatch_hw_config = {0, 0, 0};
 bool _dispatch_safe_fork = true;
 
 DISPATCH_NOINLINE
