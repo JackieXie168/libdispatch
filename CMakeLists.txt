@@ -32,32 +32,32 @@ add_definitions(-D_GNU_SOURCE)
 
 # Defines and compile flags
 if (CMAKE_BUILD_TYPE MATCHES Debug)
-  add_definitions(-DDISPATCH_DEBUG=1)
+    add_definitions(-DDISPATCH_DEBUG=1)
 endif ()
 
 if (CMAKE_C_COMPILER_ID MATCHES Clang)
-  add_definitions( -fcolor-diagnostics )
+    add_definitions( -fcolor-diagnostics )
 endif ()
 
 if (DISPATCH_SANITIZE)
-  add_definitions(-g -fsanitize=${DISPATCH_SANITIZE})
-  link_libraries(-fsanitize=${DISPATCH_SANITIZE})
+    add_definitions(-g -fsanitize=${DISPATCH_SANITIZE})
+    link_libraries(-fsanitize=${DISPATCH_SANITIZE})
 endif ()
 
 if (DISPATCH_VERSION MATCHES git)
-  set( DISPATCH_GIT_REF "" )
-  execute_process(
-      COMMAND git rev-parse --short HEAD
-      WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}"
-      OUTPUT_VARIABLE DISPATCH_GIT_REF
-      OUTPUT_STRIP_TRAILING_WHITESPACE
-  )
-  if (DISPATCH_GIT_REF)
-    string( REPLACE "git" "${DISPATCH_GIT_REF}"
-      DISPATCH_BUILD_STRING "${DISPATCH_VERSION}" )
-  endif ()
+    set( DISPATCH_GIT_REF "" )
+    execute_process(
+        COMMAND git rev-parse --short HEAD
+        WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}"
+        OUTPUT_VARIABLE DISPATCH_GIT_REF
+        OUTPUT_STRIP_TRAILING_WHITESPACE
+    )
+    if (DISPATCH_GIT_REF)
+        string( REPLACE "git" "${DISPATCH_GIT_REF}"
+            DISPATCH_BUILD_STRING "${DISPATCH_VERSION}" )
+    endif ()
 else ()
-  set( DISPATCH_BUILD_STRING "${DISPATCH_VERSION}" )
+    set( DISPATCH_BUILD_STRING "${DISPATCH_VERSION}" )
 endif ()
 
 #///////////////////////////////////////////////////////////////////////////////
@@ -126,7 +126,7 @@ dispatch_check_funcs(
     sysconf
     sysctlbyname
     vasprintf
- )
+)
 
 dispatch_check_headers(
     CoreFoundation/CoreFoundation.h
@@ -150,7 +150,7 @@ if (HAVE_UNISTD_H AND COMPILER_HAS_BLOCKS_SUPPORT)
         set(CMAKE_REQUIRED_DEFINITIONS -D_GNU_SOURCE)
         set(CMAKE_REQUIRED_FLAGS -fblocks)
         check_c_source_compiles("#include <unistd.h>\nint main(){}"
-          HAVE_WORKING_UNISTD_H)
+            HAVE_WORKING_UNISTD_H)
     cmake_pop_check_state()
     if (NOT HAVE_WORKING_UNISTD_H)
         set (HAVE_PROBLEMATIC_UNISTD_H 1)
@@ -159,16 +159,16 @@ endif ()
 
 check_c_compiler_flag("-fvisibility=hidden" SUPPORTS_FVISIBILITY_HIDDEN)
 if (SUPPORTS_FVISIBILITY_HIDDEN)
-  set (VISIBILITY_FLAGS "-fvisibility=hidden")
+    set (VISIBILITY_FLAGS "-fvisibility=hidden")
 endif ()
 
 # Test if __builtin_ffs() takes a signed argument.
 cmake_push_check_state()
-  check_c_source_compiles("int __builtin_ffs(int); int main(){}"
-    HAVE_WORKING_BUILTIN_FFS)
+    check_c_source_compiles("int __builtin_ffs(int); int main(){}"
+        HAVE_WORKING_BUILTIN_FFS)
 cmake_pop_check_state()
 if (NOT HAVE_WORKING_BUILTIN_FFS)
-  set( HAVE_PROBLEMATIC_BUILTIN_FFS 1 )
+    set( HAVE_PROBLEMATIC_BUILTIN_FFS 1 )
 endif ()
 
 set( USE_POSIX_SEM 1 )
@@ -191,4 +191,3 @@ add_subdirectory(man)
 # Install public headers
 add_subdirectory(dispatch)
 add_subdirectory(os)
-
