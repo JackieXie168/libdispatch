@@ -29,7 +29,7 @@ include_directories (
 
     ${KQUEUE_INCLUDE_DIRS}
     ${PTHREAD_WORKQUEUE_INCLUDE_DIRS}
-    ${BLOCKS_RUNTIME_INCLUDE_DIRS}
+    ${BLOCKSRUNTIME_INCLUDE_DIRS}
 )
 
 add_definitions(
@@ -67,7 +67,7 @@ foreach (target libdispatch_shared libdispatch_static)
     target_link_libraries(${target}
         ${PTHREAD_WORKQUEUE_LIBRARIES}
         ${KQUEUE_LIBRARIES}
-        ${BLOCKS_RUNTIME_LIBRARIES}
+        ${BLOCKSRUNTIME_LIBRARIES}
         rt
         -pthread
     )

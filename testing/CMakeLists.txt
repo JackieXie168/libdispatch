@@ -45,6 +45,10 @@ add_library(bsdtests SHARED
     shims/fgetln.c
     shims/fgetln.h
 )
+target_link_libraries(bsdtests
+    ${BLOCKSRUNTIME_LIBRARIES}
+    ${KQUEUE_LIBRARIES}
+)
 
 function (dispatch_test test_name)
     if (ARGN)
@@ -54,6 +58,10 @@ function (dispatch_test test_name)
     endif ()
 
     add_executable("${test_name}" ${sources})
+    target_link_libraries("${test_name}"
+        ${BLOCKSRUNTIME_LIBRARIES}
+        ${KQUEUE_LIBRARIES}
+    )
     add_dependencies(check "${test_name}")
 endfunction ()
 
@@ -75,8 +83,7 @@ include_directories(
 
 include_directories(SYSTEM
     ${KQUEUE_INCLUDE_DIRS}
-    ${PTHREAD_WORKQUEUE_INCLUDE_DIRS}
-    ${BLOCKS_RUNTIME_INCLUDE_DIRS}
+    ${BLOCKSRUNTIME_INCLUDE_DIRS}
 )
 
 add_executable(bsdtestharness bsdtestharness.c)
