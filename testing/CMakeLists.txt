@@ -32,6 +32,9 @@ execute_process(
         "${CMAKE_CURRENT_BINARY_DIR}/dispatch"
 )
 
+link_libraries( m ${KQUEUE_LIBRARIES} ${BLOCKSRUNTIME_LIBRARIES}
+    libdispatch_shared)
+
 add_library(bsdtests SHARED
     bsdtests.c
     bsdtests.h
@@ -45,10 +48,6 @@ add_library(bsdtests SHARED
     shims/fgetln.c
     shims/fgetln.h
 )
-target_link_libraries(bsdtests
-    ${BLOCKSRUNTIME_LIBRARIES}
-    ${KQUEUE_LIBRARIES}
-)
 
 function (dispatch_test test_name)
     if (ARGN)
@@ -58,10 +57,6 @@ function (dispatch_test test_name)
     endif ()
 
     add_executable("${test_name}" ${sources})
-    target_link_libraries("${test_name}"
-        ${BLOCKSRUNTIME_LIBRARIES}
-        ${KQUEUE_LIBRARIES}
-    )
     add_dependencies(check "${test_name}")
 endfunction ()
 
@@ -72,7 +67,7 @@ add_definitions(
     -fblocks
 )
 
-link_libraries(libdispatch_shared m bsdtests)
+link_libraries(bsdtests)
 
 include_directories(
     ${dispatch_BINARY_DIR}

@@ -20,7 +20,7 @@ install:
             libpthread-workqueue-dev
             wbritish
 script:
-    - mkdir build && cd build
+    - mkdir travis-build && cd travis-build
     - ../configure
     - make
     - sudo make install

@@ -60,28 +60,58 @@ if (CMAKE_C_COMPILER_ID MATCHES "GNU")
     add_definitions(-Wno-unknown-pragmas)
 endif ()
 
-add_library(libdispatch_static STATIC ${sources})
 add_library(libdispatch_shared SHARED ${sources})
+add_library(libdispatch_static STATIC ${sources})
+set_target_properties(libdispatch_static libdispatch_shared PROPERTIES
+    OUTPUT_NAME dispatch)
 
-foreach (target libdispatch_shared libdispatch_static)
-    target_link_libraries(${target}
-        ${PTHREAD_WORKQUEUE_LIBRARIES}
-        ${KQUEUE_LIBRARIES}
-        ${BLOCKSRUNTIME_LIBRARIES}
-        rt
-        -pthread
-    )
-    if (NOT DISPATCH_SANITIZE)
-        target_link_libraries(${target} -Wl,-z,defs)
-    endif ()
-endforeach ()
+################################################################################
+## SHARED LIB
+set_target_properties(libdispatch_shared PROPERTIES
+    VERSION ${DISPATCH_VERSION} SOVERSION ${DISPATCH_ABI_VERSION})
 
-set_target_properties(libdispatch_shared libdispatch_static PROPERTIES
-    VERSION ${DISPATCH_VERSION}
-    SOVERSION ${DISPATCH_ABI_VERSION}
-    OUTPUT_NAME dispatch
+set(version_script
+    "${dispatch_SOURCE_DIR}/scripts/libdispatch_globals.version")
+dispatch_add_file_dependencies(libdispatch_shared "${version_script}")
+
+target_link_libraries(libdispatch_shared LINK_PRIVATE
+    ${PTHREAD_WORKQUEUE_LIBRARIES}
+    ${KQUEUE_LIBRARIES}
+    ${BLOCKSRUNTIME_LIBRARIES}
+    rt
+    -pthread
+    "-Wl,--version-script,${version_script}"
+)
+if (NOT DISPATCH_SANITIZE)
+    target_link_libraries(libdispatch_shared LINK_PRIVATE -Wl,-z,defs)
+endif ()
+
+################################################################################
+## STATIC_LIB
+set_property(TARGET libdispatch_static APPEND PROPERTY COMPILE_FLAGS -fPIC)
+target_link_libraries(libdispatch_static LINK_PUBLIC -pthread rt)
+
+set (supplemental_libs)
+if (NOT DISPATCH_SYSTEM_KQUEUE)
+    list(APPEND supplemental_libs ${KQUEUE_LIBRARIES})
+endif ()
+if (NOT DISPATCH_SYSTEM_PTHREAD_WORKQUEUE)
+    list(APPEND supplemental_libs ${PTHREAD_WORKQUEUE_LIBRARIES})
+endif ()
+if (NOT DISPATCH_SYSTEM_BLOCKS_RUNTIME)
+    list(APPEND supplemental_libs ${BLOCKSRUNTIME_LIBRARIES})
+endif ()
+
+file(READ "${dispatch_SOURCE_DIR}/scripts/libdispatch_globals.regex"
+     globals_regex)
+string(STRIP "${globals_regex}" globals_regex)
+
+dispatch_partial_link(libdispatch_static ${supplemental_libs}
+    KEEP_GLOBAL_REGEX "${globals_regex}"
 )
 
+################################################################################
+## INSTALLATION
 install(
     TARGETS libdispatch_shared libdispatch_static
     ARCHIVE DESTINATION lib

@@ -13,6 +13,10 @@ include (CheckTypeSize)
 include (CheckCSourceCompiles)
 include (CMakePushCheckState)
 
+if (POLICY CMP0022)
+    cmake_policy(SET CMP0022 OLD)
+endif ()
+
 #///////////////////////////////////////////////////////////////////////////////
 if (NOT CMAKE_BUILD_TYPE)
     set (CMAKE_BUILD_TYPE MinSizeRel)
@@ -63,7 +67,7 @@ endif ()
 #///////////////////////////////////////////////////////////////////////////////
 # Find/build libraries we will need
 
-if (NOT USE_SYSTEM_LIBKQUEUE)
+if (NOT DISPATCH_SYSTEM_KQUEUE)
     dispatch_add_subproject(kqueue
         SOURCE_DIR thirdparty/libkqueue
         LIBRARY lib/libkqueue.a
@@ -84,7 +88,7 @@ else ()
     cmake_pop_check_state()
 endif()
 
-if (NOT USE_SYSTEM_LIBPTHREAD_WORKQUEUE)
+if (NOT DISPATCH_SYSTEM_PTHREAD_WORKQUEUE)
     dispatch_add_subproject(pthread_workqueue
         SOURCE_DIR thirdparty/libpthread_workqueue
         LIBRARY lib/libpthread_workqueue.a
@@ -96,7 +100,7 @@ else ()
         "${PTHREAD_WORKQUEUE_LIBRARIES}")
 endif ()
 
-if (NOT USE_SYSTEM_LIBBLOCKSRUNTIME)
+if (NOT DISPATCH_SYSTEM_BLOCKS_RUNTIME)
     dispatch_add_subproject(blocksRuntime
         SOURCE_DIR thirdparty/libBlocksRuntime
         LIBRARY lib/libBlocksRuntime.a
