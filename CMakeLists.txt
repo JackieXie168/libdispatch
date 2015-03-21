@@ -72,9 +72,6 @@ dispatch_search_libs(pthread_workqueue_setdispatch_np LIBRARIES
     "${PTHREAD_WORKQUEUE_LIBRARIES}")
 
 check_c_compiler_flag(-fblocks COMPILER_HAS_BLOCKS_SUPPORT)
-check_c_compiler_flag("-momit-leaf-frame-pointer"
-    SUPPORTS_MOMIT_LEAF_FRAME_POINTER)
-
 if (NOT COMPILER_HAS_BLOCKS_SUPPORT)
     message(WARNING "Blocks compiler support was not found; dispatch i/o "
                     "will not be built.")
@@ -155,11 +152,6 @@ if (HAVE_UNISTD_H AND COMPILER_HAS_BLOCKS_SUPPORT)
     if (NOT HAVE_WORKING_UNISTD_H)
         set (HAVE_PROBLEMATIC_UNISTD_H 1)
     endif ()
-endif ()
-
-check_c_compiler_flag("-fvisibility=hidden" SUPPORTS_FVISIBILITY_HIDDEN)
-if (SUPPORTS_FVISIBILITY_HIDDEN)
-    set (VISIBILITY_FLAGS "-fvisibility=hidden")
 endif ()
 
 # Test if __builtin_ffs() takes a signed argument.

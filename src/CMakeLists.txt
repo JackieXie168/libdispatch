@@ -60,10 +60,6 @@ if (CMAKE_C_COMPILER_ID MATCHES "GNU")
     add_definitions(-Wno-unknown-pragmas)
 endif ()
 
-if (SUPPORTS_MOMIT_LEAF_FRAME_POINTER)
-    add_definitions(-momit-leaf-frame-pointer)
-endif ()
-
 add_library(libdispatch_static STATIC ${sources})
 add_library(libdispatch_shared SHARED ${sources})
 
