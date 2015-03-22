@@ -18,22 +18,42 @@ matrix:
   - {compiler: clang, env: DISPATCH_BUILD_TYPE=Release DISPATCH_COMPILER=clang DISPATCH_ENABLE_TEST_SUITE=1}
   - {compiler: clang, env: DISPATCH_BUILD_TYPE=Release DISPATCH_COMPILER=clang DISPATCH_ENABLE_TEST_SUITE=1
       DISPATCH_SYSTEM_LIBS=1}
-cache: apt
-before_install:
-- sudo apt-get update -qq
 install:
 - |
+  declare -a required_packages
   if [[ "${DISPATCH_ENABLE_TEST_SUITE:-}" -eq 1 ]]; then
-    sudo apt-get install -qq wbritish
+    required_packages+=(wbritish)
   fi
 
+  if [[ "${DISPATCH_SYSTEM_LIBS:-}" -eq 1 ]]; then
+    required_packages+=(
+      libblocksruntime-dev libkqueue-dev libpthread-workqueue-dev
+    )
+  fi
+
+  if [[ "${#required_packages[@]}" -ne 0 ]]; then
+    sudo apt-get -qq update
+    sudo apt-get -qq install "${required_packages[@]}"
+  fi
+
+before_script:
+- |
   if [[ "${DISPATCH_SYSTEM_LIBS:-}" -eq 1 ]]; then
     export DISPATCH_SYSTEM_BLOCKS_RUNTIME=1
     export DISPATCH_SYSTEM_PTHREAD_WORKQUEUE=1
     export DISPATCH_SYSTEM_KQUEUE=1
-    sudo apt-get install -qq \
-      libblocksruntime-dev libkqueue-dev libpthread-workqueue-dev
   fi
+
+  if [[ "${DISPATCH_ENABLE_TEST_SUITE:-}" -eq 1 ]]; then
+    export DISPATCH_TEST_PERMITTED_FAILURES=priority2,read2,apply
+    export DISPATCH_TEST_RANDOM_SEED=$RANDOM
+    if [[ "${DISPATCH_BUILD_TYPE:-}" == "Debug" ]]; then
+      export LIBDISPATCH_LOG=0
+    else
+      export "LIBDISPATCH_LOG=${LIBDISPATCH_LOG:-stderr}"
+    fi
+  fi
+
 script:
 - mkdir travis-build && cd travis-build
 - ../configure
@@ -41,12 +61,5 @@ script:
 - sudo make install
 - |
   if [[ "${DISPATCH_ENABLE_TEST_SUITE:-}" -eq 1 ]]; then
-    export DISPATCH_TEST_PERMITTED_FAILURES=priority2,read2,apply
-    export DISPATCH_TEST_RANDOM_SEED=$RANDOM
-    if [[ "${DISPATCH_BUILD_TYPE:-}" == "Debug" ]]; then
-      export LIBDISPATCH_LOG=0
-    else
-      export LIBDISPATCH_LOG=${LIBDISPATCH_LOG:-stderr}
-    fi
     make check
   fi
