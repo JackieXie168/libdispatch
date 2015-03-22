@@ -13,13 +13,13 @@
     <script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script>
     <![endif]-->
 
-    <title>Libdispatch for Linux by nickhutchinson</title>
+    <title>libdispatch for Linux by nickhutchinson</title>
   </head>
 
   <body>
     <header>
       <div class="inner">
-        <h1>Libdispatch for Linux</h1>
+        <h1>libdispatch for Linux</h1>
         <h2>Linux port of Apple&#39;s open-source concurrency library</h2>
         <a href="https://github.com/nickhutchinson/libdispatch" class="button"><small>View project on</small> GitHub</a>
       </div>
@@ -87,7 +87,7 @@ tested.)</p>
 
 git clone git://github.com/nickhutchinson/libdispatch.git &amp;&amp; cd libdispatch
 mkdir libdispatch-build &amp;&amp; cd libdispatch-build
-./configure
+../configure
 make
 sudo make install
 </code></pre>
@@ -113,22 +113,22 @@ unreliable, and should be avoided for now.</li>
 <h3>
 <a id="foreverc" class="anchor" href="#foreverc" aria-hidden="true"><span class="octicon octicon-link"></span></a>forever.c</h3>
 
-<div class="highlight highlight-cpp"><pre>#<span class="pl-k">include</span> <span class="pl-s1"><span class="pl-pds">&lt;</span>dispatch/dispatch.h<span class="pl-pds">&gt;</span></span>
-#<span class="pl-k">include</span> <span class="pl-s1"><span class="pl-pds">&lt;</span>stdio.h<span class="pl-pds">&gt;</span></span>
+<div class="highlight highlight-cpp"><pre>#<span class="pl-k">include</span> <span class="pl-s"><span class="pl-pds">&lt;</span>dispatch/dispatch.h<span class="pl-pds">&gt;</span></span>
+#<span class="pl-k">include</span> <span class="pl-s"><span class="pl-pds">&lt;</span>stdio.h<span class="pl-pds">&gt;</span></span>
 
-<span class="pl-s">static</span> <span class="pl-st">void</span> <span class="pl-en">timer_did_fire</span>(<span class="pl-st">void</span> *context) {
-    <span class="pl-s3">printf</span>(<span class="pl-s1"><span class="pl-pds">"</span>Strawberry fields...<span class="pl-cce">\n</span><span class="pl-pds">"</span></span>);
+<span class="pl-k">static</span> <span class="pl-k">void</span> <span class="pl-en">timer_did_fire</span>(<span class="pl-k">void</span> *context) {
+    <span class="pl-c1">printf</span>(<span class="pl-s"><span class="pl-pds">"</span>Strawberry fields...<span class="pl-cce">\n</span><span class="pl-pds">"</span></span>);
 }
 
-<span class="pl-st">int</span> <span class="pl-en">main</span>(<span class="pl-st">int</span> argc, <span class="pl-s">const</span> <span class="pl-st">char</span> *argv[]) {
-    <span class="pl-s3">dispatch_source_t</span> timer = <span class="pl-s3">dispatch_source_create</span>(
-        DISPATCH_SOURCE_TYPE_TIMER, <span class="pl-c1">0</span>, <span class="pl-c1">0</span>, <span class="pl-s3">dispatch_get_main_queue</span>());
+<span class="pl-k">int</span> <span class="pl-en">main</span>(<span class="pl-k">int</span> argc, <span class="pl-k">const</span> <span class="pl-k">char</span> *argv[]) {
+    <span class="pl-c1">dispatch_source_t</span> timer = <span class="pl-c1">dispatch_source_create</span>(
+        DISPATCH_SOURCE_TYPE_TIMER, <span class="pl-c1">0</span>, <span class="pl-c1">0</span>, <span class="pl-c1">dispatch_get_main_queue</span>());
 
-    <span class="pl-s3">dispatch_source_set_event_handler_f</span>(timer, timer_did_fire);
-    <span class="pl-s3">dispatch_source_set_timer</span>(timer, DISPATCH_TIME_NOW, <span class="pl-c1">1</span> * NSEC_PER_SEC,
+    <span class="pl-c1">dispatch_source_set_event_handler_f</span>(timer, timer_did_fire);
+    <span class="pl-c1">dispatch_source_set_timer</span>(timer, DISPATCH_TIME_NOW, <span class="pl-c1">1</span> * NSEC_PER_SEC,
                               <span class="pl-c1">0.5</span> * NSEC_PER_SEC);
-    <span class="pl-s3">dispatch_resume</span>(timer);
-    <span class="pl-s3">dispatch_main</span>();
+    <span class="pl-c1">dispatch_resume</span>(timer);
+    <span class="pl-c1">dispatch_main</span>();
 }</pre></div>
 
 <pre><code>&gt; clang forever.c -I/usr/local/include -L/usr/local/lib -ldispatch -o forever
