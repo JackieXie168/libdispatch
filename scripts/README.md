@@ -9,3 +9,6 @@ This is a script to regenerate the following:
 ## static_link.py
 Script that merges static archives, and makes local any symbols with hidden
 visibility as well as all those not matching a given regular expression.
+
+## gen_tests_configs.py
+Generates test configurations for feeding to Travis CI.
