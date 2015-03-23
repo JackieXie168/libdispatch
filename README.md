@@ -22,30 +22,25 @@ full use of libdispatch with compilers like GCC that don't support blocks, it
 is not advisable to build libdispatch itself with anything other than Clang, as
 the dispatch i/o portion cannot be built without compiler support for blocks.
 
-## Runtime Requirements
-- [libBlocksRuntime](https://github.com/mheily/blocks-runtime)
-- [libpthread_workqueue](https://github.com/mheily/libpwq)
-- [libkqueue](https://github.com/mheily/libkqueue)
-
 ## Build Requirements
 - [CMake](http://cmake.org) >= 2.8.7
 - [Python2](http://python.org) >= 2.6
 - [Clang](http://llvm.org) >= 3.4
 
 ## Getting Started:
-On Ubuntu 12.04 LTS or greater, the required dependencies are available via
-apt-get. (However it ships with Clang 3.0, which is rather old and is not
-tested.)
+    # Debian/Ubuntu/etc
+    sudo apt-get install cmake clang
 
-    sudo apt-get install libblocksruntime-dev libkqueue-dev libpthread-workqueue-dev cmake
+    # Fedora/CentOS/RHEL
+    sudo yum install cmake clang
 
     git clone git://github.com/nickhutchinson/libdispatch.git && cd libdispatch
     mkdir libdispatch-build && cd libdispatch-build
-    ./configure
+    ../configure
     make
     sudo make install
 
-[![Build Status](https://travis-ci.org/nickhutchinson/libdispatch.svg?branch=master)](https://travis-ci.org/nickhutchinson/libdispatch)
+[![Build Status](https://travis-ci.org/nickhutchinson/libdispatch.svg?branch=dev)](https://travis-ci.org/nickhutchinson/libdispatch)
 
 ## Known Issues
 - 2014-10-01 - Dispatch Sources of type `DISPATCH_SOURCE_TYPE_VNODE` are
