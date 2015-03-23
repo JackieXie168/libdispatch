@@ -13,6 +13,10 @@ include (CheckTypeSize)
 include (CheckCSourceCompiles)
 include (CMakePushCheckState)
 
+if (POLICY CMP0022)
+    cmake_policy(SET CMP0022 OLD)
+endif ()
+
 #///////////////////////////////////////////////////////////////////////////////
 if (NOT CMAKE_BUILD_TYPE)
     set (CMAKE_BUILD_TYPE MinSizeRel)
@@ -61,15 +65,52 @@ else ()
 endif ()
 
 #///////////////////////////////////////////////////////////////////////////////
-# Find libraries we will need
+# Find/build libraries we will need
 
-find_package(kqueue REQUIRED)
-find_package(pthread_workqueue)
-find_package(BlocksRuntime)
+if (NOT DISPATCH_SYSTEM_KQUEUE)
+    dispatch_add_subproject(kqueue
+        SOURCE_DIR thirdparty/libkqueue
+        LIBRARY lib/libkqueue.a
+        INCLUDE_DIR include/kqueue
+    )
+else ()
+    find_package(kqueue REQUIRED)
+    cmake_push_check_state()
+        set( CMAKE_REQUIRED_INCLUDES "${KQUEUE_INCLUDE_DIRS}" )
+        set( CMAKE_REQUIRED_LIBRARIES "${KQUEUE_LIBRARIES}" )
+        dispatch_check_decls(
+            EV_SET64 NOTE_NONE NOTE_REAP NOTE_REVOKE NOTE_SIGNAL
+            NOTE_LEEWAY NOTE_NSECONDS NOTE_ABSOLUTE
+            INCLUDES sys/event.h
+        )
+        check_type_size("struct kevent64_s" DECL_KEVENT64_S)
+        dispatch_check_funcs( kevent64 )
+    cmake_pop_check_state()
+endif()
 
-set (HAVE_PTHREAD_WORKQUEUES "${PTHREAD_WORKQUEUE_FOUND}")
-dispatch_search_libs(pthread_workqueue_setdispatch_np LIBRARIES
-    "${PTHREAD_WORKQUEUE_LIBRARIES}")
+if (NOT DISPATCH_SYSTEM_PTHREAD_WORKQUEUE)
+    dispatch_add_subproject(pthread_workqueue
+        SOURCE_DIR thirdparty/libpthread_workqueue
+        LIBRARY lib/libpthread_workqueue.a
+        LIBRARY_DEBUG lib/libpthread_workqueueD.a
+    )
+else ()
+    find_package(pthread_workqueue REQUIRED)
+    dispatch_search_libs(pthread_workqueue_setdispatch_np LIBRARIES
+        "${PTHREAD_WORKQUEUE_LIBRARIES}")
+endif ()
+
+if (NOT DISPATCH_SYSTEM_BLOCKS_RUNTIME)
+    dispatch_add_subproject(blocksRuntime
+        SOURCE_DIR thirdparty/libBlocksRuntime
+        LIBRARY lib/libBlocksRuntime.a
+        INCLUDE_DIR include/Blocks
+    )
+else ()
+    find_package(BlocksRuntime REQUIRED)
+endif ()
+
+#///////////////////////////////////////////////////////////////////////////////
 
 check_c_compiler_flag(-fblocks COMPILER_HAS_BLOCKS_SUPPORT)
 if (NOT COMPILER_HAS_BLOCKS_SUPPORT)
@@ -77,31 +118,14 @@ if (NOT COMPILER_HAS_BLOCKS_SUPPORT)
                     "will not be built.")
 endif ()
 
-#///////////////////////////////////////////////////////////////////////////////
 dispatch_check_decls(F_RDADVISE INCLUDES fcntl.h)
 dispatch_check_decls(CLOCK_UPTIME CLOCK_MONOTONIC INCLUDES time.h)
-dispatch_check_decls(NOTE_NONE NOTE_REAP NOTE_SIGNAL NOTE_REVOKE
-    INCLUDES sys/event.h)
 dispatch_check_decls(VQ_UPDATE VQ_VERYLOWDISK INCLUDES sys/mount.h)
 dispatch_check_decls(TAILQ_FOREACH_SAFE INCLUDES sys/queue.h)
 dispatch_check_decls(FD_COPY INCLUDES sys/select.h)
 dispatch_check_decls(SIGEMT INCLUDES signal.h)
 dispatch_check_decls(POSIX_SPAWN_SETEXEC POSIX_SPAWN_START_SUSPENDED
     INCLUDES sys/spawn.h)
-
-if (KQUEUE_INCLUDE_DIRS AND KQUEUE_LIBRARIES)
-  cmake_push_check_state()
-    set( CMAKE_REQUIRED_INCLUDES "${KQUEUE_INCLUDE_DIRS}" )
-    set( CMAKE_REQUIRED_LIBRARIES "${KQUEUE_LIBRARIES}" )
-    dispatch_check_decls(
-        EV_SET64 NOTE_NONE NOTE_REAP NOTE_REVOKE NOTE_SIGNAL
-        NOTE_LEEWAY NOTE_NSECONDS NOTE_ABSOLUTE
-        INCLUDES sys/event.h
-    )
-    check_type_size("struct kevent64_s" DECL_KEVENT64_S)
-    dispatch_check_funcs( kevent64 )
-  cmake_pop_check_state()
-endif ()
 
 cmake_push_check_state ()
     set (CMAKE_REQUIRED_DEFINITIONS -D_GNU_SOURCE)
@@ -163,6 +187,7 @@ if (NOT HAVE_WORKING_BUILTIN_FFS)
     set( HAVE_PROBLEMATIC_BUILTIN_FFS 1 )
 endif ()
 
+set( HAVE_PTHREAD_WORKQUEUES 1 )
 set( USE_POSIX_SEM 1 )
 
 configure_file("config/config.h.cmake.in"

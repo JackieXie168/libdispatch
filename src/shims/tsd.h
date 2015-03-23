@@ -78,8 +78,8 @@ static const unsigned long dispatch_bcounter_key	= __PTK_LIBDISPATCH_KEY5;
 	}                                                                 \
 	__thread __attribute__((                                          \
 			tls_model("initial-exec"))) uintptr_t key_name##_storage; \
-	pthread_key_t key_name;                                           \
-	void (*key_name##_finalizer)(void *)
+	pthread_key_t key_name = 0;                                       \
+	void (*key_name##_finalizer)(void *) = NULL
 
 #else
 #define DISPATCH_TSD_DECL(key_name) extern pthread_key_t key_name

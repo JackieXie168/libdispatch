@@ -1,6 +1,14 @@
 # libdispatch for Linux - Changelog
 
 ## 0.2.0 / Unreleased
+- libdispatch is now self-contained, no longer relying on system version of
+  libpthread_workqueue and libkqueue. libdispatch builds and links to private
+  versions of these libraries that are not exported from the static or shared
+  library variants.
+- libBlocksRuntime is also bundled, however unlike the aforementioned libraries
+  its symbols *are* exported. blocksRuntime's symbols can be overridden by
+  those provided by another blocks implementation provided its .so appears
+  before libdispatch in your link line.
 - Merge Mavericks changes.
 
 ## 0.1.1 / 2015-03-12

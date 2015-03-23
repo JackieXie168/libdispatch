@@ -32,6 +32,9 @@ execute_process(
         "${CMAKE_CURRENT_BINARY_DIR}/dispatch"
 )
 
+link_libraries( m ${KQUEUE_LIBRARIES} ${BLOCKSRUNTIME_LIBRARIES}
+    libdispatch_shared)
+
 add_library(bsdtests SHARED
     bsdtests.c
     bsdtests.h
@@ -64,7 +67,7 @@ add_definitions(
     -fblocks
 )
 
-link_libraries(libdispatch_shared m bsdtests)
+link_libraries(bsdtests)
 
 include_directories(
     ${dispatch_BINARY_DIR}
@@ -75,8 +78,7 @@ include_directories(
 
 include_directories(SYSTEM
     ${KQUEUE_INCLUDE_DIRS}
-    ${PTHREAD_WORKQUEUE_INCLUDE_DIRS}
-    ${BLOCKS_RUNTIME_INCLUDE_DIRS}
+    ${BLOCKSRUNTIME_INCLUDE_DIRS}
 )
 
 add_executable(bsdtestharness bsdtestharness.c)
