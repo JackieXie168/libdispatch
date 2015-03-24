@@ -108,11 +108,21 @@ else ()
 endif ()
 
 if (NOT DISPATCH_SYSTEM_BLOCKS_RUNTIME)
+    set(blocks_install_prefix
+        "${CMAKE_CURRENT_BINARY_DIR}/thirdparty/blocksRuntime-subproject")
     dispatch_add_subproject(blocksRuntime
         SOURCE_DIR thirdparty/libBlocksRuntime
-        INSTALL_PREFIX thirdparty/blocksRuntime-subproject
+        INSTALL_PREFIX "${blocks_install_prefix}"
         LIBRARY lib/libBlocksRuntime.a
         INCLUDE_DIR include/Blocks
+    )
+
+    install(FILES "${blocks_install_prefix}/lib/libBlocksRuntime.a"
+        DESTINATION "${DISPATCH_INSTALL_LIB_DIR}"
+        RENAME libdispatch_BlocksRuntime.a
+    )
+    install(FILES "${blocks_install_prefix}/include/Blocks/Block.h"
+        DESTINATION "${DISPATCH_INSTALL_INCLUDE_DIR}"
     )
 else ()
     find_package(BlocksRuntime REQUIRED)

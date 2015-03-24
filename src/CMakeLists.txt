@@ -98,9 +98,6 @@ endif ()
 if (NOT DISPATCH_SYSTEM_PTHREAD_WORKQUEUE)
     list(APPEND supplemental_libs ${PTHREAD_WORKQUEUE_LIBRARIES})
 endif ()
-if (NOT DISPATCH_SYSTEM_BLOCKS_RUNTIME)
-    list(APPEND supplemental_libs ${BLOCKSRUNTIME_LIBRARIES})
-endif ()
 
 file(READ "${dispatch_SOURCE_DIR}/scripts/libdispatch_globals.regex"
      globals_regex)
