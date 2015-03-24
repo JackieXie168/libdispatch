@@ -197,10 +197,8 @@ if (HAVE_UNISTD_H AND COMPILER_HAS_BLOCKS_SUPPORT)
 endif ()
 
 # Test if __builtin_ffs() takes a signed argument.
-cmake_push_check_state()
-    check_c_source_compiles("int __builtin_ffs(int); int main(){}"
-        HAVE_WORKING_BUILTIN_FFS)
-cmake_pop_check_state()
+check_c_source_compiles("int __builtin_ffs(int); int main(){}"
+    HAVE_WORKING_BUILTIN_FFS)
 if (NOT HAVE_WORKING_BUILTIN_FFS)
     set( HAVE_PROBLEMATIC_BUILTIN_FFS 1 )
 endif ()
