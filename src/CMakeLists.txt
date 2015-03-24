@@ -98,9 +98,6 @@ endif ()
 if (NOT DISPATCH_SYSTEM_PTHREAD_WORKQUEUE)
     list(APPEND supplemental_libs ${PTHREAD_WORKQUEUE_LIBRARIES})
 endif ()
-if (NOT DISPATCH_SYSTEM_BLOCKS_RUNTIME)
-    list(APPEND supplemental_libs ${BLOCKSRUNTIME_LIBRARIES})
-endif ()
 
 file(READ "${dispatch_SOURCE_DIR}/scripts/libdispatch_globals.regex"
      globals_regex)
@@ -110,10 +107,13 @@ dispatch_partial_link(libdispatch_static ${supplemental_libs}
     KEEP_GLOBAL_REGEX "${globals_regex}"
 )
 
+target_link_libraries(libdispatch_static LINK_PUBLIC
+    ${BLOCKSRUNTIME_LIBRARIES} rt -pthread
+)
 ################################################################################
 ## INSTALLATION
 install(
     TARGETS libdispatch_shared libdispatch_static
-    ARCHIVE DESTINATION lib
-    LIBRARY DESTINATION lib
+    ARCHIVE DESTINATION "${DISPATCH_INSTALL_LIB_DIR}"
+    LIBRARY DESTINATION "${DISPATCH_INSTALL_LIB_DIR}"
 )

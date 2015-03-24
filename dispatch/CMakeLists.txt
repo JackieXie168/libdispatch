@@ -14,5 +14,5 @@ set (public_headers
 )
 
 install(FILES ${public_headers}
-    DESTINATION include/dispatch
+    DESTINATION "${DISPATCH_INSTALL_INCLUDE_DIR}/dispatch"
 )
