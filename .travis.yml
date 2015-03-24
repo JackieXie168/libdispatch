@@ -20,20 +20,10 @@ matrix:
       DISPATCH_SYSTEM_LIBS=1}
 install:
 - |
-  declare -a required_packages
-  if [[ "${DISPATCH_ENABLE_TEST_SUITE:-}" -eq 1 ]]; then
-    required_packages+=(wbritish)
-  fi
-
   if [[ "${DISPATCH_SYSTEM_LIBS:-}" -eq 1 ]]; then
-    required_packages+=(
-      libblocksruntime-dev libkqueue-dev libpthread-workqueue-dev
-    )
-  fi
-
-  if [[ "${#required_packages[@]}" -ne 0 ]]; then
     sudo apt-get -qq update
-    sudo apt-get -qq install "${required_packages[@]}"
+    sudo apt-get -qq install \
+      libblocksruntime-dev libkqueue-dev libpthread-workqueue-dev
   fi
 
 before_script:
