@@ -70,6 +70,7 @@ endif ()
 if (NOT DISPATCH_SYSTEM_KQUEUE)
     dispatch_add_subproject(kqueue
         SOURCE_DIR thirdparty/libkqueue
+        INSTALL_PREFIX thirdparty/kqueue-subproject
         LIBRARY lib/libkqueue.a
         INCLUDE_DIR include/kqueue
     )
@@ -91,6 +92,7 @@ endif()
 if (NOT DISPATCH_SYSTEM_PTHREAD_WORKQUEUE)
     dispatch_add_subproject(pthread_workqueue
         SOURCE_DIR thirdparty/libpthread_workqueue
+        INSTALL_PREFIX thirdparty/pthread_workqueue-subproject
         LIBRARY lib/libpthread_workqueue.a
         LIBRARY_DEBUG lib/libpthread_workqueueD.a
     )
@@ -103,6 +105,7 @@ endif ()
 if (NOT DISPATCH_SYSTEM_BLOCKS_RUNTIME)
     dispatch_add_subproject(blocksRuntime
         SOURCE_DIR thirdparty/libBlocksRuntime
+        INSTALL_PREFIX thirdparty/blocksRuntime-subproject
         LIBRARY lib/libBlocksRuntime.a
         INCLUDE_DIR include/Blocks
     )
