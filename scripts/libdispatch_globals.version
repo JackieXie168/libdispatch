@@ -1,4 +1,4 @@
 {
-  global: *dispatch*; _NSConcrete*; _os_object*; Block*; _Block*;
+  global: *dispatch*; _os_object*; _NSConcrete*; Block*; _Block*;
   local: *;
 };

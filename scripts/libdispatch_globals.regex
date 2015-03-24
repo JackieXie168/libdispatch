@@ -1,1 +1,1 @@
-.*dispatch.*\Z(?ms)|\_NSConcrete.*\Z(?ms)|\_os\_object.*\Z(?ms)|Block.*\Z(?ms)|\_Block.*\Z(?ms)
+.*dispatch.*\Z(?ms)|\_os\_object.*\Z(?ms)

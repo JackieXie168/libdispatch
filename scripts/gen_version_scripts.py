@@ -13,13 +13,10 @@ del sys.path[1]
 
 ###############################################################################
 
-GLOBAL_SYMBOL_PATTERNS = """
-    *dispatch*
-    _NSConcrete*
-    _os_object*
-    Block*
-    _Block*
-""".split()
+SHARED_LIBRARY_PATTERNS = [
+    '*dispatch*', '_os_object*', '_NSConcrete*', 'Block*', '_Block*', ]
+
+STATIC_LIBRARY_PATTERNS = ['*dispatch*', '_os_object*', ]
 
 @click.command()
 @click.argument('output_dir', required=True,
@@ -29,13 +26,13 @@ def main(output_dir):
 
     with open('libdispatch_globals.version', 'wb') as f:
         f.write('{\n')
-        f.write('  global: %s;\n' % '; '.join(GLOBAL_SYMBOL_PATTERNS))
+        f.write('  global: %s;\n' % '; '.join(SHARED_LIBRARY_PATTERNS))
         f.write('  local: *;\n')
         f.write('};\n')
 
     with open('libdispatch_globals.regex', 'wb') as f:
         f.write('%s\n' %
-                '|'.join(map(fnmatch.translate, GLOBAL_SYMBOL_PATTERNS)))
+                '|'.join(map(fnmatch.translate, STATIC_LIBRARY_PATTERNS)))
 
 if __name__ == '__main__':
     main()
