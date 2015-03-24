@@ -130,12 +130,21 @@ if (DISPATCH_ENABLE_BLOCKS AND NOT COMPILER_SUPPORTS_BLOCKS)
                     "disabled.")
 
 elseif (DISPATCH_USE_PRIVATE_BLOCKSRUNTIME)
+    set(blocks_install_prefix
+        "${CMAKE_CURRENT_BINARY_DIR}/thirdparty/blocksRuntime-subproject")
     dispatch_add_subproject(blocksRuntime
         SOURCE_DIR thirdparty/libBlocksRuntime
-        INSTALL_PREFIX thirdparty/blocksRuntime-subproject
+        INSTALL_PREFIX "${blocks_install_prefix}"
         LIBRARY lib/libBlocksRuntime.a
         INCLUDE_DIR include/Blocks)
 
+    install(FILES "${blocks_install_prefix}/lib/libBlocksRuntime.a"
+        DESTINATION "${CMAKE_INSTALL_LIBDIR}"
+        RENAME libdispatch_BlocksRuntime.a
+    )
+    install(FILES "${blocks_install_prefix}/include/Blocks/Block.h"
+        DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}"
+    )
 elseif (DISPATCH_ENABLE_BLOCKS)
     find_package(BlocksRuntime)
     if (NOT BLOCKSRUNTIME_FOUND)
