@@ -12,6 +12,11 @@ include (CheckCCompilerFlag)
 include (CheckTypeSize)
 include (CheckCSourceCompiles)
 include (CMakePushCheckState)
+include (GNUInstallDirs)
+
+set(DISPATCH_INSTALL_INCLUDE_DIR "${CMAKE_INSTALL_INCLUDEDIR}/dispatch")
+set(DISPATCH_INSTALL_LIB_DIR "${CMAKE_INSTALL_LIBDIR}")
+set(DISPATCH_INSTALL_MAN_DIR "${CMAKE_INSTALL_MANDIR}")
 
 if (POLICY CMP0022)
     cmake_policy(SET CMP0022 OLD)

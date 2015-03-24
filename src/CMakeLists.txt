@@ -110,10 +110,13 @@ dispatch_partial_link(libdispatch_static ${supplemental_libs}
     KEEP_GLOBAL_REGEX "${globals_regex}"
 )
 
+target_link_libraries(libdispatch_static LINK_PUBLIC
+    ${BLOCKSRUNTIME_LIBRARIES} rt -pthread
+)
 ################################################################################
 ## INSTALLATION
 install(
     TARGETS libdispatch_shared libdispatch_static
-    ARCHIVE DESTINATION lib
-    LIBRARY DESTINATION lib
+    ARCHIVE DESTINATION "${DISPATCH_INSTALL_LIB_DIR}"
+    LIBRARY DESTINATION "${DISPATCH_INSTALL_LIB_DIR}"
 )
