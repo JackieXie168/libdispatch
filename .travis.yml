@@ -1,49 +1,20 @@
 language: cpp
+sudo: false
+
 # Test matrix generated from scripts/gen_test_configs.py
 matrix:
   include:
-  - {compiler: gcc, env: DISPATCH_BUILD_TYPE=Release DISPATCH_COMPILER=gcc DISPATCH_SYSTEM_LIBS=1}
-  - {compiler: gcc, env: DISPATCH_BUILD_TYPE=Release DISPATCH_COMPILER=gcc}
-  - {compiler: gcc, env: DISPATCH_BUILD_TYPE=Debug DISPATCH_COMPILER=gcc DISPATCH_SYSTEM_LIBS=1}
   - {compiler: gcc, env: DISPATCH_BUILD_TYPE=Debug DISPATCH_COMPILER=gcc}
-  - {compiler: clang, env: DISPATCH_BUILD_TYPE=Release DISPATCH_COMPILER=clang DISPATCH_SYSTEM_LIBS=1}
-  - {compiler: clang, env: DISPATCH_BUILD_TYPE=Debug DISPATCH_COMPILER=clang DISPATCH_SYSTEM_LIBS=1}
+  - {compiler: gcc, env: DISPATCH_BUILD_TYPE=Release DISPATCH_COMPILER=gcc}
+  - {compiler: clang, env: DISPATCH_BUILD_TYPE=Release DISPATCH_COMPILER=clang}
+  - {compiler: clang, env: DISPATCH_BUILD_TYPE=Debug DISPATCH_COMPILER=clang}
+  - {compiler: clang, env: DISPATCH_BUILD_TYPE=Release DISPATCH_COMPILER=clang DISPATCH_ENABLE_TEST_SUITE=1}
+  - {compiler: clang, env: DISPATCH_BUILD_TYPE=Debug DISPATCH_COMPILER=clang DISPATCH_ENABLE_TEST_SUITE=1}
   - {compiler: clang, env: 'DISPATCH_BUILD_TYPE=Release DISPATCH_COMPILER=clang DISPATCH_ENABLE_TEST_SUITE=1
       DISPATCH_SANITIZE=address,undefined'}
-  - {compiler: clang, env: 'DISPATCH_BUILD_TYPE=Release DISPATCH_COMPILER=clang DISPATCH_ENABLE_TEST_SUITE=1
-      DISPATCH_SANITIZE=address,undefined DISPATCH_SYSTEM_LIBS=1'}
-  - {compiler: clang, env: DISPATCH_BUILD_TYPE=Debug DISPATCH_COMPILER=clang DISPATCH_ENABLE_TEST_SUITE=1}
-  - {compiler: clang, env: DISPATCH_BUILD_TYPE=Debug DISPATCH_COMPILER=clang DISPATCH_ENABLE_TEST_SUITE=1
-      DISPATCH_SYSTEM_LIBS=1}
-  - {compiler: clang, env: DISPATCH_BUILD_TYPE=Release DISPATCH_COMPILER=clang DISPATCH_ENABLE_TEST_SUITE=1}
-  - {compiler: clang, env: DISPATCH_BUILD_TYPE=Release DISPATCH_COMPILER=clang DISPATCH_ENABLE_TEST_SUITE=1
-      DISPATCH_SYSTEM_LIBS=1}
-install:
-- |
-  declare -a required_packages
-  if [[ "${DISPATCH_ENABLE_TEST_SUITE:-}" -eq 1 ]]; then
-    required_packages+=(wbritish)
-  fi
-
-  if [[ "${DISPATCH_SYSTEM_LIBS:-}" -eq 1 ]]; then
-    required_packages+=(
-      libblocksruntime-dev libkqueue-dev libpthread-workqueue-dev
-    )
-  fi
-
-  if [[ "${#required_packages[@]}" -ne 0 ]]; then
-    sudo apt-get -qq update
-    sudo apt-get -qq install "${required_packages[@]}"
-  fi
 
 before_script:
 - |
-  if [[ "${DISPATCH_SYSTEM_LIBS:-}" -eq 1 ]]; then
-    export DISPATCH_SYSTEM_BLOCKS_RUNTIME=1
-    export DISPATCH_SYSTEM_PTHREAD_WORKQUEUE=1
-    export DISPATCH_SYSTEM_KQUEUE=1
-  fi
-
   if [[ "${DISPATCH_ENABLE_TEST_SUITE:-}" -eq 1 ]]; then
     export DISPATCH_TEST_PERMITTED_FAILURES=priority2,read2,apply
     export DISPATCH_TEST_RANDOM_SEED=$RANDOM
@@ -57,8 +28,7 @@ before_script:
 script:
 - mkdir travis-build && cd travis-build
 - ../configure
-- make -j2
-- sudo make install
+- make install DESTDIR=$PWD/staging
 - |
   if [[ "${DISPATCH_ENABLE_TEST_SUITE:-}" -eq 1 ]]; then
     make check
