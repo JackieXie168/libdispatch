@@ -14,5 +14,5 @@ set (public_headers
 )
 
 install(FILES ${public_headers}
-    DESTINATION include/dispatch
+    DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}/dispatch"
 )

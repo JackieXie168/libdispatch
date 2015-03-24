@@ -103,10 +103,13 @@ dispatch_partial_link(libdispatch_static ${partial_link_libs}
     GLOBAL_SYMBOL_REGEX "${globals_regex}"
 )
 
+target_link_libraries(libdispatch_static LINK_PUBLIC
+    ${BLOCKSRUNTIME_LIBRARIES} rt -pthread
+)
 ################################################################################
 ## INSTALLATION
 install(
     TARGETS libdispatch_shared libdispatch_static
-    ARCHIVE DESTINATION lib
-    LIBRARY DESTINATION lib
+    ARCHIVE DESTINATION "${CMAKE_INSTALL_LIBDIR}"
+    LIBRARY DESTINATION "${CMAKE_INSTALL_LIBDIR}"
 )

@@ -12,6 +12,7 @@ include (CheckCSourceCompiles)
 include (CheckTypeSize)
 include (CMakeDependentOption)
 include (CMakePushCheckState)
+include (GNUInstallDirs)
 
 if (NOT CMAKE_BUILD_TYPE)
     set (CMAKE_BUILD_TYPE Release)
