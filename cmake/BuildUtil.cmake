@@ -99,6 +99,21 @@ function (dispatch_search_libs function)
 endfunction ()
 
 
+function(_join_list l glue output_var)
+    set(output )
+    list(LENGTH l length)
+    foreach (i RANGE 1 ${length})
+        math(EXPR idx "${i} - 1")
+        list(GET l ${idx} item)
+        if (idx EQUAL 0)
+            set(output "${output}${item}")
+        else()
+            set(output "${output}${glue}${item}")
+        endif ()
+    endforeach()
+    set("${output_var}" "${output}" PARENT_SCOPE)
+endfunction()
+
 function (dispatch_add_subproject name)
     # Wrapper around ExternalProject_Add/add_library(IMPORTED).
     #
@@ -106,7 +121,7 @@ function (dispatch_add_subproject name)
     # Optional args: INSTALL_PREFIX, INCLUDE_DIR, LIBRARY_DEBUG, CMAKE_ARGS
     #
     # CMAKE_ARGS are forwarded to the cmake configure invocation for the
-    # subproject. Any unrecognised args are forwarded to ExternalProject().
+    # subproject.
     #
     # If not absolute
     # - SOURCE_DIR is assumed to be relative to the current source dir
@@ -128,9 +143,15 @@ function (dispatch_add_subproject name)
         "CMAKE_ARGS"
         ${ARGN})
 
+    if (args_UNPARSED_ARGUMENTS)
+        _join_list("${args_UNPARSED_ARGUMENTS}" ", " unparsed_args)
+        message(FATAL_ERROR "dispatch_add_subproject: Unexpected arguments: "
+            ${unparsed_args})
+    endif ()
+
     if (NOT args_SOURCE_DIR)
         message(FATAL_ERROR "dispatch_add_subproject: SOURCE_DIR not set")
-    elseif (IS_ABSOLUTE args_SOURCE_DIR)
+    elseif (IS_ABSOLUTE "${args_SOURCE_DIR}")
         set(source_dir "${args_SOURCE_DIR}")
     else ()
         set(source_dir "${CMAKE_CURRENT_SOURCE_DIR}/${args_SOURCE_DIR}")
@@ -138,7 +159,7 @@ function (dispatch_add_subproject name)
 
     if (NOT args_INSTALL_PREFIX)
         set(install_prefix "${CMAKE_CURRENT_BINARY_DIR}/${name}_subproj")
-    elseif (IS_ABSOLUTE args_INSTALL_PREFIX)
+    elseif (IS_ABSOLUTE "${args_INSTALL_PREFIX}")
         set(install_prefix "${args_INSTALL_PREFIX}")
     else ()
         set(install_prefix
@@ -147,7 +168,7 @@ function (dispatch_add_subproject name)
 
     if (NOT args_LIBRARY)
         message(FATAL_ERROR "dispatch_add_subproject: LIBRARY not set")
-    elseif (IS_ABSOLUTE args_LIBRARY)
+    elseif (IS_ABSOLUTE "${args_LIBRARY}")
         set(library_path "${args_LIBRARY}")
     else ()
         set(library_path "${install_prefix}/${args_LIBRARY}")
@@ -155,7 +176,7 @@ function (dispatch_add_subproject name)
 
     if (NOT args_LIBRARY_DEBUG)
         set(debug_library_path "")
-    elseif (IS_ABSOLUTE args_LIBRARY_DEBUG)
+    elseif (IS_ABSOLUTE "${args_LIBRARY_DEBUG}")
         set(debug_library_path "${args_LIBRARY_DEBUG}")
     else ()
         set(debug_library_path "${install_prefix}/${args_LIBRARY_DEBUG}")
@@ -163,7 +184,7 @@ function (dispatch_add_subproject name)
 
     if (NOT args_INCLUDE_DIR)
         set(include_dir "${install_prefix}/include")
-    elseif (IS_ABSOLUTE args_INCLUDE_DIR)
+    elseif (IS_ABSOLUTE "${args_INCLUDE_DIR}")
         set(include_dir "${args_INCLUDE_DIR}")
     else ()
         set(include_dir "${install_prefix}/${args_INCLUDE_DIR}")
@@ -179,9 +200,28 @@ function (dispatch_add_subproject name)
         set(byproducts_flags BUILD_BYPRODUCTS "${library_path}")
     endif ()
 
+    set(build_command "${CMAKE_COMMAND}" --build <BINARY_DIR>
+        --config ${CMAKE_CFG_INTDIR} )
+    # We don't want the current value for DESTDIR polluting our subproject.
+    # For reasons I don't understand, the `env -u` trick doesn't work for Make
+    # if DESTDIR=... is given as a command-line option: child make sees it
+    # anyway.
+    if ("${CMAKE_GENERATOR}" MATCHES "Make")
+        set(build_command_head)
+        set(build_command_tail -- DESTDIR= )
+    else ()
+        set(build_command_head env -u DESTDIR -- )
+        set(build_command_tail )
+    endif ()
+
     ExternalProject_Add("${name}_subproj"
         PREFIX "${install_prefix}"
         SOURCE_DIR "${source_dir}"
+        BUILD_COMMAND
+            ${build_command_head} ${build_command} ${build_command_tail}
+        INSTALL_COMMAND
+            ${build_command_head} ${build_command} --target install
+            ${build_command_tail}
         CMAKE_ARGS
             "-DCMAKE_INSTALL_PREFIX=${install_prefix}"
             "-DCMAKE_C_COMPILER=${CMAKE_C_COMPILER}"
@@ -191,7 +231,6 @@ function (dispatch_add_subproject name)
             --warn-uninitialized
             ${args_CMAKE_ARGS}
         ${byproducts_flags}
-        ${args_UNPARSED_ARGUMENTS}
     )
 
     add_library("${name}" UNKNOWN IMPORTED)
@@ -219,6 +258,7 @@ function (dispatch_partial_link target)
         CC=${CMAKE_C_COMPILER}
         CFLAGS=${CMAKE_C_FLAGS}
         OBJDUMP=${CMAKE_OBJDUMP}
+        NM=${CMAKE_NM}
         OBJCOPY=${CMAKE_OBJCOPY}
         AR=${CMAKE_AR}
         RANLIB=${CMAKE_RANLIB}
