@@ -48,7 +48,7 @@ script:
 - mkdir travis-build && cd travis-build
 - ../configure
 - make -j2
-- sudo make install
+- env DESTDIR=$PWD/staging make install
 - |
   if [[ "${DISPATCH_ENABLE_TEST_SUITE:-}" -eq 1 ]]; then
     make check
