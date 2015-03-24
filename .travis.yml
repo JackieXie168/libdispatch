@@ -10,29 +10,32 @@ matrix:
         - compiler: gcc
         - compiler: gcc
           env: DISPATCH_BUILD_TYPE=Debug
-cache: apt
-before_install:
-    - sudo apt-get update -qq
 install:
+    - sudo apt-get update -qq
     - sudo apt-get install -qq
             libblocksruntime-dev
             libkqueue-dev
             libpthread-workqueue-dev
             wbritish
-script:
-    - mkdir build && cd build
-    - ../configure
-    - make
-    - sudo make install
-    - |
-        if [[ $DISPATCH_ENABLE_TEST_SUITE -eq 1 ]]; then
-            export DISPATCH_TEST_PERMITTED_FAILURES=priority2,read2,apply
-            export DISPATCH_TEST_RANDOM_SEED=$RANDOM
-            if [[ $DISPATCH_BUILD_TYPE == "Debug" ]]; then
-                export LIBDISPATCH_LOG=0
-            else
-                export LIBDISPATCH_LOG=${LIBDISPATCH_LOG:-stderr}
-            fi
-            make check
-        fi
 
+before_script:
+- |
+  if [[ "${DISPATCH_ENABLE_TEST_SUITE:-}" -eq 1 ]]; then
+    export DISPATCH_TEST_PERMITTED_FAILURES=priority2,read2,apply
+    export DISPATCH_TEST_RANDOM_SEED=$RANDOM
+    if [[ "${DISPATCH_BUILD_TYPE:-}" == "Debug" ]]; then
+      export LIBDISPATCH_LOG=0
+    else
+      export "LIBDISPATCH_LOG=${LIBDISPATCH_LOG:-stderr}"
+    fi
+  fi
+
+script:
+- mkdir travis-build && cd travis-build
+- ../configure
+- make -j2
+- env DESTDIR=$PWD/staging make install
+- |
+  if [[ "${DISPATCH_ENABLE_TEST_SUITE:-}" -eq 1 ]]; then
+    make check
+  fi
