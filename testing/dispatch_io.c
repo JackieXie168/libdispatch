@@ -95,6 +95,52 @@ _maxopenfiles()
 #endif
 
 static void
+test_io_sigpipe()
+{
+	int fds[2];
+	int status;
+
+	status = pipe(fds);
+	if (status) {
+		test_errno("pipe", errno, 0);
+		test_stop();
+	}
+	int read_end = fds[0];
+	int write_end = fds[1];
+	close(read_end);
+
+	dispatch_group_t g = dispatch_group_create();
+	dispatch_queue_t q =
+			dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0);
+
+	dispatch_group_enter(g);
+	dispatch_io_t channel =
+			dispatch_io_create(DISPATCH_IO_STREAM, write_end, q, ^(int error) {
+				test_errno("create error", error, 0);
+				close(write_end);
+				dispatch_group_leave(g);
+			});
+
+	dispatch_data_t d = dispatch_data_create("wibble", 1, NULL, NULL);
+	dispatch_group_enter(g);
+	dispatch_io_write(channel, 0, d, q,
+					  ^(bool done, dispatch_data_t data, int error) {
+		(void)data;
+		test_long("done", done, true);
+		test_errno("write error", error, EPIPE);
+		dispatch_io_close(channel, 0);
+		dispatch_group_leave(g);
+	});
+	dispatch_release(d);
+	dispatch_release(channel);
+
+	status = dispatch_group_wait(
+			g, dispatch_time(DISPATCH_TIME_NOW, 1 * NSEC_PER_SEC));
+	test_long("group wait", status, 0);
+	dispatch_release(g);
+}
+
+static void
 test_io_close(int with_timer, bool from_path)
 {
 	#define chunks 4
@@ -756,6 +802,7 @@ main(void)
 	dispatch_test_start("Dispatch IO");
 	dispatch_async(dispatch_get_main_queue(), ^{
 #if DISPATCHTEST_IO
+		test_io_sigpipe();
 		int i; bool from_path = false;
 		do {
 			for (i = 0; i < 3; i++) {

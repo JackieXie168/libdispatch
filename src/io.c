@@ -84,6 +84,9 @@ static void _dispatch_disk_handler(void *ctx);
 static void _dispatch_disk_perform(void *ctxt);
 static void _dispatch_operation_advise(dispatch_operation_t op,
 		size_t chunk_size);
+#if TARGET_OS_LINUX
+static void _dispatch_io_consume_sigpipe(void);
+#endif
 static int _dispatch_operation_perform(dispatch_operation_t op);
 static void _dispatch_operation_deliver_data(dispatch_operation_t op,
 		dispatch_op_flags_t flags);
@@ -1929,10 +1932,20 @@ _dispatch_stream_handler(void *ctx)
 	// On stream queue
 	dispatch_stream_t stream = (dispatch_stream_t)ctx;
 	dispatch_operation_t op;
+#if TARGET_OS_LINUX
+	sigset_t mask, prev_mask;
+	(void)dispatch_assume_zero(sigemptyset(&mask));
+	(void)dispatch_assume_zero(sigaddset(&mask, SIGPIPE));
+	(void)dispatch_assume_zero(pthread_sigmask(SIG_BLOCK, &mask, &prev_mask));
+#endif
 pick:
 	op = _dispatch_stream_pick_next_operation(stream, stream->op);
 	if (!op) {
 		_dispatch_debug("no operation found: stream %p", stream);
+#if TARGET_OS_LINUX
+		(void)dispatch_assume_zero(
+				pthread_sigmask(SIG_SETMASK, &prev_mask, NULL));
+#endif
 		return;
 	}
 	int err = _dispatch_io_get_error(op, NULL, true);
@@ -1995,6 +2008,9 @@ pick:
 		break;
 	}
 	_dispatch_fd_entry_release(fd_entry);
+#if TARGET_OS_LINUX
+	(void)dispatch_assume_zero(pthread_sigmask(SIG_SETMASK, &prev_mask, NULL));
+#endif
 	return;
 }
 
@@ -2157,6 +2173,22 @@ _dispatch_operation_advise(dispatch_operation_t op, size_t chunk_size)
 #endif
 }
 
+#if TARGET_OS_LINUX
+static void
+_dispatch_io_consume_sigpipe()
+{
+	struct timespec ts = {0, 0};
+	int err;
+	sigset_t mask;
+	(void)dispatch_assume_zero(sigemptyset(&mask));
+	(void)dispatch_assume_zero(sigaddset(&mask, SIGPIPE));
+	_dispatch_io_syscall_switch(err,
+		sigtimedwait(&mask, NULL, &ts),
+		default: (void)dispatch_assume_zero(err); break;
+	);
+}
+#endif
+
 static int
 _dispatch_operation_perform(dispatch_operation_t op)
 {
@@ -2289,6 +2321,11 @@ error:
 	case EBADF:
 		(void)dispatch_atomic_cmpxchg2o(op->fd_entry, err, 0, err, relaxed);
 		return DISPATCH_OP_FD_ERR;
+#if TARGET_OS_LINUX
+	case EPIPE:
+		_dispatch_io_consume_sigpipe();
+		return DISPATCH_OP_COMPLETE;
+#endif
 	default:
 		return DISPATCH_OP_COMPLETE;
 	}
