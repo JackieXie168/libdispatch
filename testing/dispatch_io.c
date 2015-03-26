@@ -134,9 +134,7 @@ test_io_sigpipe()
 	dispatch_release(d);
 	dispatch_release(channel);
 
-	status = dispatch_group_wait(
-			g, dispatch_time(DISPATCH_TIME_NOW, 1 * NSEC_PER_SEC));
-	test_long("group wait", status, 0);
+	test_group_wait(g);
 	dispatch_release(g);
 }
 

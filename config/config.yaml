@@ -17,6 +17,7 @@ declarations:
   - CLOCK_UPTIME
   - F_RDADVISE
   - FD_COPY
+  - MSG_NOSIGNAL
   - POSIX_SPAWN_SETEXEC
   - POSIX_SPAWN_START_SUSPENDED
   - program_invocation_short_name

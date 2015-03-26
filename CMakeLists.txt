@@ -144,6 +144,7 @@ dispatch_check_decls(FD_COPY INCLUDES sys/select.h)
 dispatch_check_decls(SIGEMT INCLUDES signal.h)
 dispatch_check_decls(POSIX_SPAWN_SETEXEC POSIX_SPAWN_START_SUSPENDED
     INCLUDES sys/spawn.h)
+dispatch_check_decls(MSG_NOSIGNAL INCLUDES sys/socket.h)
 
 cmake_push_check_state ()
     set (CMAKE_REQUIRED_DEFINITIONS -D_GNU_SOURCE)
