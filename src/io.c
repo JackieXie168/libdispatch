@@ -2202,6 +2202,7 @@ _dispatch_operation_write(dispatch_operation_t op,
 			int err;
 			_dispatch_io_syscall_switch(err,
 				sigtimedwait(&mask, NULL, &ts),
+				case EAGAIN: break;
 				default: (void)dispatch_assume_zero(err); break;
 			);
 		}
