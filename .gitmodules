@@ -1,9 +1,0 @@
-[submodule "thirdparty/libpthread_workqueue"]
-	path = thirdparty/libpthread_workqueue
-	url = https://github.com/nickhutchinson/libpthread_workqueue.git
-[submodule "thirdparty/libkqueue"]
-	path = thirdparty/libkqueue
-	url = https://github.com/nickhutchinson/libkqueue.git
-[submodule "thirdparty/libBlocksRuntime"]
-	path = thirdparty/libBlocksRuntime
-	url = https://github.com/nickhutchinson/libBlocksRuntime.git
