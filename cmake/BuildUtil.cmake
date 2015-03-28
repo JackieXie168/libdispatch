@@ -200,28 +200,25 @@ function (dispatch_add_subproject name)
         set(byproducts_flags BUILD_BYPRODUCTS "${library_path}")
     endif ()
 
-    set(build_command "${CMAKE_COMMAND}" --build <BINARY_DIR>
-        --config ${CMAKE_CFG_INTDIR} )
     # We don't want the current value for DESTDIR polluting our subproject.
-    # For reasons I don't understand, the `env -u` trick doesn't work for Make
-    # if DESTDIR=... is given as a command-line option: child make sees it
-    # anyway.
+    # Make is a bit special in that it gets angry about being driven by cmake
+    # --build, so we copy what ExternalProject.cmake does and use the special
+    # "$(MAKE)" syntax instead.
     if ("${CMAKE_GENERATOR}" MATCHES "Make")
-        set(build_command_head)
-        set(build_command_tail -- DESTDIR= )
+        set(build_command $(MAKE) DESTDIR=)
+        set(install_command $(MAKE) DESTDIR= install)
     else ()
-        set(build_command_head env -u DESTDIR -- )
-        set(build_command_tail )
+        set(build_command_head env -u DESTDIR "${CMAKE_COMMAND}"
+            --build <BINARY_DIR> --config ${CMAKE_CFG_INTDIR})
+        set(build_command ${build_command_head})
+        set(install_command ${build_command_head} --target install)
     endif ()
 
     ExternalProject_Add("${name}_subproj"
         PREFIX "${install_prefix}"
         SOURCE_DIR "${source_dir}"
-        BUILD_COMMAND
-            ${build_command_head} ${build_command} ${build_command_tail}
-        INSTALL_COMMAND
-            ${build_command_head} ${build_command} --target install
-            ${build_command_tail}
+        BUILD_COMMAND ${build_command}
+        INSTALL_COMMAND ${install_command}
         CMAKE_ARGS
             "-DCMAKE_INSTALL_PREFIX=${install_prefix}"
             "-DCMAKE_C_COMPILER=${CMAKE_C_COMPILER}"
