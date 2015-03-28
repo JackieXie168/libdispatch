@@ -8,10 +8,15 @@ function (create_man_symlink symlink_target)
     message(STATUS "Creating symlinks for: ${man_dir}/${symlink_target}")
 
     foreach (link IN LISTS args_SYMLINKS)
+        set(status )
         execute_process(COMMAND ${CMAKE_COMMAND} -E
             create_symlink "${symlink_target}" "${link}"
             WORKING_DIRECTORY "${man_dir}"
+            RESULT_VARIABLE status
         )
+        if (NOT "${status}" EQUAL 0)
+            message(FATAL_ERROR "Error creating link ${link}: ${status}")
+        endif ()
     endforeach ()
 endfunction ()
 

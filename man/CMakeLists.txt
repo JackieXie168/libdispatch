@@ -20,5 +20,5 @@ set (man_pages
 
 configure_file(create_man_symlinks.cmake.in create_man_symlinks.cmake @ONLY)
 
-install(FILES ${man_pages} DESTINATION "${DISPATCH_INSTALL_MAN_DIR}")
+install(FILES ${man_pages} DESTINATION "${DISPATCH_INSTALL_MAN_DIR}/man3")
 install(SCRIPT "${CMAKE_CURRENT_BINARY_DIR}/create_man_symlinks.cmake")
