@@ -74,6 +74,7 @@ endif ()
 
 if (NOT DISPATCH_SYSTEM_KQUEUE)
     dispatch_add_subproject(kqueue
+        CMAKE_ARGS     -DKQUEUE_SANITIZE=${DISPATCH_SANITIZE}
         SOURCE_DIR     thirdparty/libkqueue
         INSTALL_PREFIX thirdparty/kqueue-subproject
         LIBRARY        lib/libkqueue.a
@@ -96,6 +97,7 @@ endif()
 
 if (NOT DISPATCH_SYSTEM_PTHREAD_WORKQUEUE)
     dispatch_add_subproject(pthread_workqueue
+        CMAKE_ARGS     -DPWQ_SANITIZE=${DISPATCH_SANITIZE}
         SOURCE_DIR     thirdparty/libpthread_workqueue
         INSTALL_PREFIX thirdparty/pthread_workqueue-subproject
         LIBRARY        lib/libpthread_workqueue.a
@@ -111,6 +113,7 @@ if (NOT DISPATCH_SYSTEM_BLOCKS_RUNTIME)
     set(blocks_install_prefix
         "${CMAKE_CURRENT_BINARY_DIR}/thirdparty/blocksRuntime-subproject")
     dispatch_add_subproject(blocksRuntime
+        CMAKE_ARGS     -DBLOCKSRUNTIME_SANITIZE=${DISPATCH_SANITIZE}
         SOURCE_DIR     thirdparty/libBlocksRuntime
         INSTALL_PREFIX "${blocks_install_prefix}"
         LIBRARY        lib/libBlocksRuntime.a

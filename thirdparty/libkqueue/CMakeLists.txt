@@ -39,6 +39,11 @@ check_include_file(unistd.h HAVE_UNISTD_H)
 configure_file(config.h.cmake.in "${CMAKE_CURRENT_BINARY_DIR}/config.h")
 include_directories("${CMAKE_CURRENT_BINARY_DIR}")
 
+if (KQUEUE_SANITIZE)
+    add_definitions(-g -fsanitize=${KQUEUE_SANITIZE})
+    link_libraries(-fsanitize=${KQUEUE_SANITIZE})
+endif ()
+
 #files
 file(GLOB_RECURSE INCL include/*.h)
 source_group(includes FILES ${INCL})

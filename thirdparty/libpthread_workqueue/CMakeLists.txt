@@ -27,6 +27,11 @@ if (CMAKE_SYSTEM_NAME MATCHES Linux)
     set (LINUX 1)
 endif ()
 
+if (PWQ_SANITIZE)
+    add_definitions(-g -fsanitize=${PWQ_SANITIZE})
+    link_libraries(-fsanitize=${PWQ_SANITIZE})
+endif ()
+
 #///////////////////////////////////////////////////////////////////////////////
 #files
 file(GLOB_RECURSE headers include/*.h)

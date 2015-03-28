@@ -9,6 +9,11 @@ include (CheckCSourceCompiles)
 include (CheckCCompilerFlag)
 #///////////////////////////////////////////////////////////////////////////////
 
+if (BLOCKSRUNTIME_SANITIZE)
+  add_definitions(-g -fsanitize=${BLOCKSRUNTIME_SANITIZE})
+  link_libraries(-fsanitize=${BLOCKSRUNTIME_SANITIZE})
+endif ()
+
 check_c_source_compiles("
 int main() {
   int a=0; long b=0;
