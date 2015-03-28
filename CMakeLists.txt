@@ -15,8 +15,8 @@ include (CMakePushCheckState)
 include (GNUInstallDirs)
 
 set(DISPATCH_INSTALL_INCLUDE_DIR "${CMAKE_INSTALL_INCLUDEDIR}/dispatch")
-set(DISPATCH_INSTALL_LIB_DIR "${CMAKE_INSTALL_LIBDIR}")
-set(DISPATCH_INSTALL_MAN_DIR "${CMAKE_INSTALL_MANDIR}")
+set(DISPATCH_INSTALL_LIB_DIR     "${CMAKE_INSTALL_LIBDIR}")
+set(DISPATCH_INSTALL_MAN_DIR     "${CMAKE_INSTALL_MANDIR}")
 
 if (POLICY CMP0022)
     cmake_policy(SET CMP0022 OLD)
@@ -56,9 +56,9 @@ endif ()
 if (DISPATCH_VERSION MATCHES git)
     set( DISPATCH_GIT_REF "" )
     execute_process(
-        COMMAND git rev-parse --short HEAD
+        COMMAND           git rev-parse --short HEAD
         WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}"
-        OUTPUT_VARIABLE DISPATCH_GIT_REF
+        OUTPUT_VARIABLE   DISPATCH_GIT_REF
         OUTPUT_STRIP_TRAILING_WHITESPACE
     )
     if (DISPATCH_GIT_REF)
@@ -74,10 +74,10 @@ endif ()
 
 if (NOT DISPATCH_SYSTEM_KQUEUE)
     dispatch_add_subproject(kqueue
-        SOURCE_DIR thirdparty/libkqueue
+        SOURCE_DIR     thirdparty/libkqueue
         INSTALL_PREFIX thirdparty/kqueue-subproject
-        LIBRARY lib/libkqueue.a
-        INCLUDE_DIR include/kqueue
+        LIBRARY        lib/libkqueue.a
+        INCLUDE_DIR    include/kqueue
     )
 else ()
     find_package(kqueue REQUIRED)
@@ -96,10 +96,10 @@ endif()
 
 if (NOT DISPATCH_SYSTEM_PTHREAD_WORKQUEUE)
     dispatch_add_subproject(pthread_workqueue
-        SOURCE_DIR thirdparty/libpthread_workqueue
+        SOURCE_DIR     thirdparty/libpthread_workqueue
         INSTALL_PREFIX thirdparty/pthread_workqueue-subproject
-        LIBRARY lib/libpthread_workqueue.a
-        LIBRARY_DEBUG lib/libpthread_workqueueD.a
+        LIBRARY        lib/libpthread_workqueue.a
+        LIBRARY_DEBUG  lib/libpthread_workqueueD.a
     )
 else ()
     find_package(pthread_workqueue REQUIRED)
@@ -111,15 +111,15 @@ if (NOT DISPATCH_SYSTEM_BLOCKS_RUNTIME)
     set(blocks_install_prefix
         "${CMAKE_CURRENT_BINARY_DIR}/thirdparty/blocksRuntime-subproject")
     dispatch_add_subproject(blocksRuntime
-        SOURCE_DIR thirdparty/libBlocksRuntime
+        SOURCE_DIR     thirdparty/libBlocksRuntime
         INSTALL_PREFIX "${blocks_install_prefix}"
-        LIBRARY lib/libBlocksRuntime.a
-        INCLUDE_DIR include/Blocks
+        LIBRARY        lib/libBlocksRuntime.a
+        INCLUDE_DIR    include/Blocks
     )
 
     install(FILES "${blocks_install_prefix}/lib/libBlocksRuntime.a"
         DESTINATION "${DISPATCH_INSTALL_LIB_DIR}"
-        RENAME libdispatch_BlocksRuntime.a
+        RENAME      libdispatch_BlocksRuntime.a
     )
     install(FILES "${blocks_install_prefix}/include/Blocks/Block.h"
         DESTINATION "${DISPATCH_INSTALL_INCLUDE_DIR}"
