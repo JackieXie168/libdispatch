@@ -189,6 +189,32 @@ _dispatch_thread_getspecific(pthread_key_t k)
 		}                                                           \
 	} while (0)
 
+#define _dispatch_thread_cleanup_specific(key_name)            \
+	do {                                                       \
+		void *_value = _dispatch_thread_getspecific(key_name); \
+		_dispatch_thread_setspecific(key_name, NULL);          \
+		if (_value && key_name##_finalizer != NULL) {          \
+			key_name##_finalizer(_value);                      \
+		}                                                      \
+	} while (0)
+
+static inline void
+_dispatch_thread_cleanup_tsd()
+{
+	_dispatch_thread_cleanup_specific(dispatch_queue_key);
+#if !DISPATCH_USE_OS_SEMAPHORE_CACHE
+	_dispatch_thread_cleanup_specific(dispatch_sema4_key);
+#endif
+	_dispatch_thread_cleanup_specific(dispatch_cache_key);
+	_dispatch_thread_cleanup_specific(dispatch_io_key);
+	_dispatch_thread_cleanup_specific(dispatch_apply_key);
+#if DISPATCH_INTROSPECTION
+	_dispatch_thread_cleanup_specific(dispatch_introspection_key);
+#elif DISPATCH_PERF_MON
+	_dispatch_thread_cleanup_specific(dispatch_bcounter_key);
+#endif
+}
+
 #else
 DISPATCH_TSD_INLINE
 static inline void

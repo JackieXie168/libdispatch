@@ -3034,6 +3034,10 @@ _dispatch_runloop_queue_port_dispose(dispatch_queue_t dq)
 	(void)dispatch_assume_zero(kr);
 #elif TARGET_OS_LINUX
 	int fd = (int)(intptr_t)dq->do_ctxt;
+	if (fd == -1) {
+		return;
+	}
+	dq->do_ctxt = (void*)(intptr_t)-1;
 	(void)dispatch_assume_zero(close(fd));
 #endif
 }
@@ -3145,13 +3149,16 @@ dispatch_main(void)
 	if (pthread_main_np()) {
 		_dispatch_object_debug(&_dispatch_main_q, "%s", __func__);
 		_dispatch_program_is_probably_callback_driven = true;
-#if __has_feature(address_sanitizer)
-		_dispatch_queue_cleanup(&_dispatch_main_q);
-		_dispatch_sigsuspend();
+#if TARGET_OS_LINUX
+		_dispatch_thread_cleanup_tsd();
+		sigset_t mask;
+		dispatch_assume_zero(sigfillset(&mask));
+		sigsuspend(&mask);
+		DISPATCH_CRASH("sigsuspend() returned");
 #else
 		pthread_exit(NULL);
-#endif
 		DISPATCH_CRASH("pthread_exit() returned");
+#endif
 	}
 	DISPATCH_CLIENT_CRASH("dispatch_main() must be called on the main thread");
 }
