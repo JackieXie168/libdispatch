@@ -63,6 +63,27 @@ static const unsigned long dispatch_bcounter_key	= __PTK_LIBDISPATCH_KEY5;
 #endif
 
 #elif TARGET_OS_LINUX
+// Linux TSD Implementation
+// ------------------------
+// Linux pthread_setspecific/pthread_getspecific is slow, so we prefer __thread
+// variables. libdispatch relies on TSD destructors though, which means we
+// can't completely avoid calls to pthread_setspecific. The aim is to reduce
+// the number of calls to a minumum.
+//
+// * [NAME]_storage: __thread variable holding the value AND-ed with 1. '0' is
+//     special-cased to mean 'never set for this thread'.
+// * [NAME]: For TSD's with destructors -- i.e. dispatch_thread_key_create() is
+//     called with a non-NULL second argument -- this is the pthread_key_t that
+//     facilitates the calling of destructors. Otherwise, its value is
+//     unspecified. We only call pthread_specific once per thread, when we note
+//     that [NAME]_storage is at its initial value of 0.
+// * [NAME]_finalizer: for TSD's with destructors, this is a pointer to the
+//     destructor as supplied to dispatch_thread_key_create. For TSD's without
+//     destructors, this is NULL.
+// * [NAME]_destructor: for TSD's with destructors, this is the shim destructor
+//     we actually register with pthread_key_create(). It calls
+//     [NAME]_finalizer if appropriate.
+
 #define DISPATCH_TSD_DECL(key_name)               \
 	extern __thread uintptr_t key_name##_storage; \
 	extern pthread_key_t key_name;                \
@@ -148,21 +169,24 @@ _dispatch_thread_getspecific(pthread_key_t k)
 #endif // !DISPATCH_USE_TSD_BASE || DISPATCH_DEBUG
 
 #elif TARGET_OS_LINUX
-#define _dispatch_thread_key_create(key_name, destructor)               \
-	do {                                                                \
-		*(key_name##_finalizer) = (destructor);                         \
-		dispatch_assert_zero(                                           \
-				pthread_key_create((key_name), key_name##_destructor)); \
+#define _dispatch_thread_key_create(key_name, destructor)                   \
+	do {                                                                    \
+		if ((*(key_name##_finalizer) = (destructor))) {                     \
+			dispatch_assert_zero(                                           \
+					pthread_key_create((key_name), key_name##_destructor)); \
+		}                                                                   \
 	} while (0)
 
 #define _dispatch_thread_getspecific(key_name) \
 	(void *)(key_name##_storage & ~(uintptr_t)1)
 
-#define _dispatch_thread_setspecific(key_name, v)                             \
-	do {                                                                      \
-		uintptr_t _old = key_name##_storage;                                  \
-		key_name##_storage = (uintptr_t)(v) | 1u;                             \
-		if (slowpath(_old == 0)) pthread_setspecific((key_name), (void *)1u); \
+#define _dispatch_thread_setspecific(key_name, v)                   \
+	do {                                                            \
+		uintptr_t _prev = key_name##_storage;                       \
+		key_name##_storage = (uintptr_t)(v) | 1u;                   \
+		if (slowpath(_prev == 0) && key_name##_finalizer != NULL) { \
+			pthread_setspecific((key_name), (void *)1u);            \
+		}                                                           \
 	} while (0)
 
 #else
