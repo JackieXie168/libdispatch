@@ -19,7 +19,7 @@ endif ()
 
 # Aggregate target that collects all the test executables.
 add_custom_target(check
-    "${CMAKE_CURRENT_SOURCE_DIR}/run_tests.py"
+    COMMAND py.test "${CMAKE_CURRENT_SOURCE_DIR}" -rsx
     WORKING_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}"
     VERBATIM ${USES_TERMINAL_FLAG})
 

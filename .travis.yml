@@ -11,18 +11,17 @@ matrix:
         - compiler: gcc
           env: DISPATCH_BUILD_TYPE=Debug
 install:
-    - sudo apt-get update -qq
-    - sudo apt-get install -qq
-            libblocksruntime-dev
-            libkqueue-dev
-            libpthread-workqueue-dev
-            wbritish
+- |
+  sudo apt-get update -qq
+  sudo apt-get install -qq \
+    libblocksruntime-dev libkqueue-dev  libpthread-workqueue-dev wbritish
+  if [[ "${DISPATCH_ENABLE_TEST_SUITE:-}" -eq 1 ]]; then
+    sudo pip install pytest
+  fi
 
 before_script:
 - |
   if [[ "${DISPATCH_ENABLE_TEST_SUITE:-}" -eq 1 ]]; then
-    export DISPATCH_TEST_PERMITTED_FAILURES=priority2,read2,apply
-    export DISPATCH_TEST_RANDOM_SEED=$RANDOM
     if [[ "${DISPATCH_BUILD_TYPE:-}" == "Debug" ]]; then
       export LIBDISPATCH_LOG=0
     else
