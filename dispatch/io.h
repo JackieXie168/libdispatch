@@ -243,6 +243,8 @@ dispatch_write_f_np(dispatch_fd_t fd,
   void *context,
   void (*handler)(void* context, dispatch_data_t data, int error));
 
+__END_DECLS
+
 /*!
  * @functiongroup Dispatch I/O Channel API
  */
@@ -254,6 +256,8 @@ dispatch_write_f_np(dispatch_fd_t fd,
  * retained and released, suspended and resumed, etc.
  */
 DISPATCH_DECL(dispatch_io);
+
+__BEGIN_DECLS
 
 /*!
  * @typedef dispatch_io_type_t

@@ -9,9 +9,6 @@ PROJECT_ROOT = os.path.join(SCRIPT_DIR, '..')
 @pytest.mark.parametrize('cc', ['clang', 'gcc'])
 @pytest.mark.parametrize('filetype', ['c', 'c++'])
 def test_header_compat(cc, filetype):
-    if cc == 'gcc' and filetype == 'c++':
-        pytest.xfail("Issue #17")
-
     ret = subprocess.call(
         [
             cc, '-x', filetype, '-I%s' % PROJECT_ROOT, '-fsyntax-only',
