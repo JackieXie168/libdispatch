@@ -52,7 +52,10 @@ tested.)
   unreliable, and should be avoided for now.
 
 ## Testing
-See the `run-tests.py` script in `testing/`.
+```
+pip install pytest
+py.test -rsx testing
+```
 
 ## Demo
 
