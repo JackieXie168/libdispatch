@@ -2,24 +2,39 @@ language: cpp
 matrix:
     include:
         - compiler: clang
-          env: DISPATCH_RUN_TESTS=1
+          env: DISPATCH_ENABLE_TEST_SUITE=1
+        - compiler: clang
+          env: DISPATCH_BUILD_TYPE=Debug DISPATCH_ENABLE_TEST_SUITE=1
+        - compiler: clang
+          env: DISPATCH_SANITIZE=address,undefined DISPATCH_ENABLE_TEST_SUITE=1
         - compiler: gcc
-cache: apt
-before_install:
-    - sudo apt-get update -qq
+        - compiler: gcc
+          env: DISPATCH_BUILD_TYPE=Debug
 install:
-    - sudo apt-get install -qq
-            libblocksruntime-dev
-            libkqueue-dev
-            libpthread-workqueue-dev
-            wbritish
-script:
-    - mkdir build && cd build
-    - ../configure --enable-test-suite
-    - make
-    - sudo make install
-    - |
-        if [[ "$DISPATCH_RUN_TESTS" -eq 1 ]]; then
-            ../testing/run_tests.py --permitted-failures=priority2,read2,apply --random-seed=$RANDOM testing
-        fi
+- |
+  sudo apt-get update -qq
+  sudo apt-get install -qq \
+    libblocksruntime-dev libkqueue-dev  libpthread-workqueue-dev wbritish
+  if [[ "${DISPATCH_ENABLE_TEST_SUITE:-}" -eq 1 ]]; then
+    sudo pip install pytest
+  fi
 
+before_script:
+- |
+  if [[ "${DISPATCH_ENABLE_TEST_SUITE:-}" -eq 1 ]]; then
+    if [[ "${DISPATCH_BUILD_TYPE:-}" == "Debug" ]]; then
+      export LIBDISPATCH_LOG=0
+    else
+      export "LIBDISPATCH_LOG=${LIBDISPATCH_LOG:-stderr}"
+    fi
+  fi
+
+script:
+- mkdir travis-build && cd travis-build
+- ../configure
+- make -j2
+- env DESTDIR=$PWD/staging make install
+- |
+  if [[ "${DISPATCH_ENABLE_TEST_SUITE:-}" -eq 1 ]]; then
+    make check
+  fi

@@ -84,6 +84,8 @@ static void _dispatch_main_q_eventfd_init(void *ctxt);
 static void _dispatch_eventfd_write(int fd, uint64_t value);
 static uint64_t _dispatch_eventfd_read(int fd);
 static int main_q_eventfd = -1;
+
+static void _dispatch_queue_cleanup_tsd(void);
 #endif
 
 #pragma mark -
@@ -2644,13 +2646,44 @@ void _dispatch_main_q_eventfd_init(void *ctxt DISPATCH_UNUSED)
 }
 #endif
 
+#if DISPATCH_LINUX_COMPAT
+static void
+_dispatch_queue_cleanup_tsd(void)
+{
+	struct tsd_entry_s {
+		pthread_key_t thread_key;
+		void (*destructor)(void *);
+	} entries[] = {
+			{dispatch_queue_key, _dispatch_queue_cleanup},
+			{dispatch_sema4_key,
+			 (void (*)(void *))_dispatch_thread_semaphore_dispose},
+			{dispatch_cache_key, _dispatch_cache_cleanup},
+	};
+	for (unsigned i = 0; i < countof(entries); ++i) {
+		void *val = _dispatch_thread_getspecific(entries[i].thread_key);
+		if (val) {
+			entries[i].destructor(val);
+			_dispatch_thread_setspecific(entries[i].thread_key, NULL);
+		}
+	}
+}
+#endif  // DISPATCH_LINUX_COMPAT
+
 void
 dispatch_main(void)
 {
 	if (pthread_main_np()) {
 		_dispatch_program_is_probably_callback_driven = true;
+#if !DISPATCH_LINUX_COMPAT
 		pthread_exit(NULL);
 		DISPATCH_CRASH("pthread_exit() returned");
+#else
+		_dispatch_queue_cleanup_tsd();
+		sigset_t mask;
+		(void)dispatch_assume_zero(sigfillset(&mask));
+		sigsuspend(&mask);
+		DISPATCH_CRASH("sigsuspend() returned");
+#endif
 	}
 	DISPATCH_CLIENT_CRASH("dispatch_main() must be called on the main thread");
 }

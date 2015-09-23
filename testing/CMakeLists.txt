@@ -5,14 +5,24 @@ if (NOT DISPATCH_ENABLE_TEST_SUITE)
     return ()
 endif ()
 
-# Aggregate target that collects all the test executables.
-add_custom_target(tests)
-
 if (NOT COMPILER_HAS_BLOCKS_SUPPORT)
     message(WARNING
         "No compiler support for Blocks; test suite will not be built.")
     return ()
 endif ()
+
+if (NOT CMAKE_VERSION VERSION_LESS 3.2)
+    set (USES_TERMINAL_FLAG USES_TERMINAL)
+else ()
+    set (USES_TERMINAL_FLAG "")
+endif ()
+
+# Aggregate target that collects all the test executables.
+add_custom_target(check
+    COMMAND py.test "${CMAKE_CURRENT_SOURCE_DIR}" -rsx
+    WORKING_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}"
+    VERBATIM ${USES_TERMINAL_FLAG})
+
 #///////////////////////////////////////////////////////////////////////////////
 
 execute_process(
@@ -44,7 +54,7 @@ function (dispatch_test test_name)
     endif ()
 
     add_executable("${test_name}" ${sources})
-    add_dependencies(tests "${test_name}")
+    add_dependencies(check "${test_name}")
 endfunction ()
 
 add_definitions(
@@ -71,7 +81,7 @@ include_directories(SYSTEM
 
 add_executable(bsdtestharness bsdtestharness.c)
 add_executable(bsdtestsummarize bsdtestsummarize.c)
-add_dependencies(tests bsdtestharness bsdtestsummarize)
+add_dependencies(check bsdtestharness bsdtestsummarize)
 
 dispatch_test( dispatch_after )
 dispatch_test( dispatch_api )
@@ -94,7 +104,7 @@ dispatch_test( dispatch_plusplus )
 dispatch_test( dispatch_priority )
 
 dispatch_test( dispatch_priority2 dispatch_priority.c )
-set_target_properties(dispatch_priority2 PROPERTIES 
+set_target_properties(dispatch_priority2 PROPERTIES
     COMPILE_DEFINITIONS USE_SET_TARGET_QUEUE=1)
 
 dispatch_test( dispatch_proc )
