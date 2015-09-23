@@ -1,5 +1,11 @@
 # libdispatch for Linux - Changelog
 
+## 0.1.2 / 2015-09-23
+- [BUGFIX] Fix compiling public headers with GCC in C++ mode. (Issue #17)
+- [BUGFIX] dispatch_main() no longer calls pthread_exit() internally, as
+  calling pthread_exit() on the main thread appears to cause numerous issues on
+  Linux.
+
 ## 0.1.1 / 2015-03-12
 - [BUGFIX] Fix leaking of internal symbols from libdispatch.so
 
