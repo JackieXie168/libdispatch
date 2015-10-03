@@ -94,7 +94,7 @@ if (SUPPORTS_FVISIBILITY_HIDDEN)
   set (VISIBILITY_FLAGS "-fvisibility=hidden")
 endif ()
 
-set (USE_POSIX_SEM 1)
+set (USE_FUTEX_SEM 1)
 
 configure_file("config/config.h.cmake.in"
     "${dispatch_BINARY_DIR}/config/config.h"
