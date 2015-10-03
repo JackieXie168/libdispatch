@@ -187,6 +187,27 @@
 #include <unistd.h>
 #endif
 
+#if defined(__APPLE__)
+#if __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__
+#define DISPATCH_LITTLE_ENDIAN
+#elif __BYTE_ORDER__ == __ORDER_BIG_ENDIAN__
+#define DISPATCH_BIG_ENDIAN
+#endif
+
+#elif defined(__linux__)
+#include <endian.h>
+#if __BYTE_ORDER == __LITTLE_ENDIAN
+#define DISPATCH_LITTLE_ENDIAN
+#elif __BYTE_ORDER == __BIG_ENDIAN
+#define DISPATCH_BIG_ENDIAN
+#endif
+
+#endif  /* defined(__APPLE__) */
+
+#if !(defined(DISPATCH_BIG_ENDIAN) || defined(DISPATCH_LITTLE_ENDIAN))
+#error "Unable to determine platform endianness."
+#endif
+
 #define DISPATCH_NOINLINE __attribute__((__noinline__))
 #define DISPATCH_USED __attribute__((__used__))
 #define DISPATCH_UNUSED __attribute__((__unused__))
