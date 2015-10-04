@@ -1,6 +1,6 @@
 # libdispatch for Linux - Changelog
 
-## 0.1.3 / Unreleased
+## 0.1.3 / 2015-10-04
 - [BUGFIX] Speculative fix for a bug in Glibc's implementation of POSIX
   semaphores that could crash libdispatch.
 
