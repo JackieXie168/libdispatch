@@ -1,10 +1,16 @@
 # libdispatch for Linux - Changelog
 
+## 0.1.3 / Unreleased
+- [BUGFIX] Speculative fix for a bug in Glibc's implementation of POSIX
+  semaphores that could crash libdispatch.
+
 ## 0.1.2 / 2015-09-23
 - [BUGFIX] Fix compiling public headers with GCC in C++ mode. (Issue #17)
 - [BUGFIX] dispatch_main() no longer calls pthread_exit() internally, as
-  calling pthread_exit() on the main thread appears to cause numerous issues on
-  Linux.
+  calling pthread_exit() on the main thread appears to cause issues on
+  Linux. E.g. some parts of /proc/PID become unuseable, (see:
+  http://man7.org/linux/man-pages/man5/proc.5.html) and address sanitizer
+  treats it as a fatal error.
 
 ## 0.1.1 / 2015-03-12
 - [BUGFIX] Fix leaking of internal symbols from libdispatch.so
