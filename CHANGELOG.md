@@ -1,8 +1,9 @@
 # libdispatch for Linux - Changelog
 
-## 0.1.3 / 2015-10-04
+## 0.1.3.1 / 2015-10-06
 - [BUGFIX] Speculative fix for a bug in Glibc's implementation of POSIX
   semaphores that could crash libdispatch.
+- This is identical to 0.1.3, but with the correct version number.
 
 ## 0.1.2 / 2015-09-23
 - [BUGFIX] Fix compiling public headers with GCC in C++ mode. (Issue #17)
