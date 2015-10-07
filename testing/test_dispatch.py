@@ -1,20 +1,28 @@
 import pytest
 import subprocess
 import os
+import errno
 
 SCRIPT_DIR = os.path.abspath(os.path.dirname(__file__))
 PROJECT_ROOT = os.path.join(SCRIPT_DIR, '..')
 
 
+def check_call(*args, **kwargs):
+    try:
+        ret = subprocess.call(*args, **kwargs)
+    except OSError as e:
+        if e.errno == errno.ENOENT:
+            pytest.fail(e)
+        else:
+            raise
+    assert ret == 0
+
+
 @pytest.mark.parametrize('cc', ['clang', 'gcc'])
 @pytest.mark.parametrize('filetype', ['c', 'c++'])
 def test_header_compat(cc, filetype):
-    ret = subprocess.call(
-        [
-            cc, '-x', filetype, '-I%s' % PROJECT_ROOT, '-fsyntax-only',
-            os.path.join(PROJECT_ROOT, 'dispatch/dispatch.h')
-        ])
-    assert ret == 0
+    check_call([cc, '-x', filetype, '-I%s' % PROJECT_ROOT, '-fsyntax-only',
+                os.path.join(PROJECT_ROOT, 'dispatch/dispatch.h')])
 
 
 TESTS = [
@@ -60,6 +68,5 @@ TESTS = [
 
 @pytest.mark.parametrize('test', TESTS)
 def test_dispatch(test):
-    ret = subprocess.call(os.path.join(pytest.config.option.dispatch_test_dir,
-                                       'dispatch_%s' % test))
-    assert ret == 0
+    check_call(os.path.join(pytest.config.option.dispatch_test_dir,
+                            'dispatch_%s' % test))
