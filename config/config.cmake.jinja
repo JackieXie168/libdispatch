@@ -1,0 +1,15 @@
+include(CheckIncludeFile)
+include(CheckSymbolExists)
+include(CheckFunctionExists)
+
+{% for header in headers %}
+check_include_file({{header|cmake_literal}} {{("HAVE_"~header)|uppercase_identifier|cmake_literal}})
+{% endfor %}
+
+{% for decl in decls %}
+check_symbol_exists({{decl.name|cmake_literal}} {{decl.includes|cmake_literal}} {{("HAVE_DECL_"~decl.name)|uppercase_identifier|cmake_literal}})
+{% endfor %}
+
+{% for function in functions %}
+check_function_exists({{function|cmake_literal}} {{("HAVE_"~function)|uppercase_identifier|cmake_literal}})
+{% endfor %}

@@ -1,0 +1,13 @@
+---
+decls:
+  - {name: EPOLLRDHUP, includes: [sys/epoll.h]}
+  - {name: PORT_SOURCE_FILE, includes: [sys/port.h]}
+
+functions:
+  - ppoll
+
+headers:
+  - err.h
+  - sys/eventfd.h
+  - sys/signalfd.h
+  - sys/timerfd.h
