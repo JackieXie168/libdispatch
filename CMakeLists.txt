@@ -184,4 +184,3 @@ add_subdirectory(man)
 
 # Install public headers
 add_subdirectory(dispatch)
-add_subdirectory(os)

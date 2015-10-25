@@ -45,7 +45,10 @@
 #define __DISPATCH_INDIRECT__
 #endif
 
+#ifndef __linux__
 #include <os/object.h>
+#endif
+
 #include <dispatch/base.h>
 #include <dispatch/object.h>
 #include <dispatch/time.h>
