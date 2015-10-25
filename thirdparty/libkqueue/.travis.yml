@@ -1,0 +1,58 @@
+language: cpp
+matrix:
+  include:
+  - {compiler: gcc, env: KQUEUE_BUILD_TYPE=Release KQUEUE_COMPILER=gcc}
+  - {compiler: clang, env: KQUEUE_BUILD_TYPE=Release KQUEUE_COMPILER=clang}
+  - {compiler: gcc, env: KQUEUE_BUILD_TYPE=Debug KQUEUE_COMPILER=gcc}
+  - {compiler: clang, env: KQUEUE_BUILD_TYPE=Debug KQUEUE_COMPILER=clang}
+  - {compiler: clang, env: KQUEUE_BUILD_TYPE=Release KQUEUE_COMPILER=clang KQUEUE_SANITIZE=1}
+
+before_script:
+  - |
+    export CMAKE="$HOME/opt/cmake/bin/cmake"
+    if [[ ! -x "$CMAKE" ]]; then
+      mkdir -p "$HOME/opt/cmake"
+      wget "http://www.cmake.org/files/v3.2/cmake-3.2.3-Linux-x86_64.tar.gz"
+      tar xvf "cmake-3.2.3-Linux-x86_64.tar.gz" -C "$HOME/opt/cmake" --strip-components=1
+    fi
+
+    if [[ $CC =~ clang ]]; then
+      export ASAN_SYMBOLIZER_PATH="$(which llvm-symbolizer-3.6)"
+      export CC="$(which clang-3.6)"
+      export CXX="$(which clang++-3.6)"
+    fi
+
+    if [[ $KQUEUE_SANITIZE -ne 0 ]]; then
+      export CFLAGS="-fsanitize=address,undefined -fno-sanitize=vptr,function"
+      export CXXFLAGS="$CFLAGS"
+    fi
+
+    export KQUEUE_ENABLE_TEST_SUITE=${KQUEUE_ENABLE_TEST_SUITE:-1}
+
+script:
+  - mkdir travis-build && cd travis-build
+  - '"$CMAKE" -DCMAKE_BUILD_TYPE="$KQUEUE_BUILD_TYPE" -DKQUEUE_ENABLE_TEST_SUITE="$KQUEUE_ENABLE_TEST_SUITE" ..'
+  - make -j2
+  - env DESTDIR="$PWD/staging" make install && find "$PWD/staging" -type f
+  - |
+    if [[ $KQUEUE_ENABLE_TEST_SUITE -ne 0 ]]; then
+      make check
+    fi
+sudo: false
+addons:
+  apt:
+    sources:
+    - ubuntu-toolchain-r-test
+    - llvm-toolchain-precise-3.6
+    packages:
+    - g++-4.8
+    - clang-3.6
+    - llvm-3.6
+cache:
+  directories:
+    - $HOME/opt
+
+notifications:
+  email:
+    on_success: change
+    on_failure: change

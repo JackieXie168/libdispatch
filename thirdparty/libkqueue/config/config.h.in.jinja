@@ -1,0 +1,26 @@
+{% for header in headers %}
+{{ "\n" if not loop.first else "" -}}
+{% filter wordwrap(wrapstring="\n   ")  %}
+/* Define to 1 if you have the <{{header}}> header file. */
+{% endfilter %}
+
+#cmakedefine HAVE_{{header|uppercase_identifier}} 1
+{% endfor %}
+
+{% for decl in decls %}
+{{ "\n" if not loop.first else "" -}}
+{% filter wordwrap(wrapstring="\n   ")  %}
+/* Define to 1 if you have the declaration of `{{decl.name}}', and to 0 if you don't. */
+{% endfilter %}
+
+#cmakedefine01 HAVE_DECL_{{decl.name|uppercase_identifier}}
+{% endfor %}
+
+{% for function in functions %}
+{{ "\n" if not loop.first else "" -}}
+{% filter wordwrap(wrapstring="\n   ")  %}
+/* Define to 1 if you have the `{{function}}' function. */
+{% endfilter %}
+
+#cmakedefine HAVE_{{function|uppercase_identifier}} 1
+{% endfor %}
