@@ -1,40 +1,58 @@
 language: cpp
+sudo: required
+dist: trusty
+
+addons:
+  artifacts: true
+
 matrix:
-    include:
-        - compiler: clang
-          env: DISPATCH_ENABLE_TEST_SUITE=1
-        - compiler: clang
-          env: DISPATCH_BUILD_TYPE=Debug DISPATCH_ENABLE_TEST_SUITE=1
-        - compiler: clang
-          env: DISPATCH_SANITIZE=address,undefined DISPATCH_ENABLE_TEST_SUITE=1
-        - compiler: gcc
-        - compiler: gcc
-          env: DISPATCH_BUILD_TYPE=Debug
+  include:
+    - compiler: clang
+    - compiler: clang
+      env: DISPATCH_BUILD_TYPE=Debug
+    - compiler: gcc
+    - compiler: gcc
+      env: DISPATCH_BUILD_TYPE=Debug
+    - compiler: clang
+      env: DISPATCH_ENABLE_TEST_SUITE=1
+    - compiler: clang
+      env: DISPATCH_SANITIZE=address,undefined DISPATCH_ENABLE_TEST_SUITE=1 LSAN_OPTIONS=exitcode=0
+
 install:
 - |
   sudo apt-get update -qq
-  sudo apt-get install -qq \
-    libblocksruntime-dev libkqueue-dev  libpthread-workqueue-dev wbritish
-  if [[ "${DISPATCH_ENABLE_TEST_SUITE:-}" -eq 1 ]]; then
-    sudo pip install pytest
+  sudo apt-get install -qq   \
+    clang-3.6                \
+    libblocksruntime-dev     \
+    libkqueue-dev            \
+    libpthread-workqueue-dev \
+    ninja-build              \
+    python-pytest            \
+    wbritish
+- |
+  if [[ "$CC" =~ clang ]]; then
+    # Force use of our clang.
+    export CC=/usr/bin/clang-3.6
+    export CXX=/usr/bin/clang++-3.6
   fi
 
 before_script:
 - |
   if [[ "${DISPATCH_ENABLE_TEST_SUITE:-}" -eq 1 ]]; then
     if [[ "${DISPATCH_BUILD_TYPE:-}" == "Debug" ]]; then
-      export LIBDISPATCH_LOG=0
-    else
-      export "LIBDISPATCH_LOG=${LIBDISPATCH_LOG:-stderr}"
+      export "LIBDISPATCH_LOG=file"
     fi
   fi
 
 script:
 - mkdir travis-build && cd travis-build
-- ../configure
-- make -j2
-- env DESTDIR=$PWD/staging make install
+- ../configure -GNinja
+- ninja
+- env DESTDIR=$PWD/staging ninja install
 - |
   if [[ "${DISPATCH_ENABLE_TEST_SUITE:-}" -eq 1 ]]; then
-    make check
+    for n in $(seq 2); do
+      # Run tests twice to flush out flaky tests.
+      ctest -j 2 --output-on-failure --schedule-random
+    done
   fi

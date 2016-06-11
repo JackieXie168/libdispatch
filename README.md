@@ -28,14 +28,12 @@ the dispatch i/o portion cannot be built without compiler support for blocks.
 - [libkqueue](https://github.com/mheily/libkqueue)
 
 ## Build Requirements
-- [CMake](http://cmake.org) >= 2.8.7
+- [CMake](http://cmake.org) >= 2.8.12
 - [Python2](http://python.org) >= 2.6
 - [Clang](http://llvm.org) >= 3.4
 
 ## Getting Started:
-On Ubuntu 12.04 LTS or greater, the required dependencies are available via
-apt-get. (However it ships with Clang 3.0, which is rather old and is not
-tested.)
+On Ubuntu 14.04, the required dependencies are available via apt-get.
 
     sudo apt-get install libblocksruntime-dev libkqueue-dev libpthread-workqueue-dev cmake
 
@@ -51,10 +49,9 @@ tested.)
 - 2014-10-01 - Dispatch Sources of type `DISPATCH_SOURCE_TYPE_VNODE` are
   unreliable, and should be avoided for now.
 
-## Testing
+## Testing with CTest
 ```
-pip install pytest
-py.test -rsx testing
+ctest -j $(nproc) --output-on-failure
 ```
 
 ## Demo
