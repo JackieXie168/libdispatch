@@ -379,7 +379,7 @@ test_writes_reads_eagain(void) // rdar://problem/8333366
 			test_errno("write", errno, 0);
 			test_stop();
 		}
-		usleep(10000);
+		usleep(25000);
 	}
 	close(in);
 	close(*(fd+1));
