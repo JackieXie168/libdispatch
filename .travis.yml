@@ -48,6 +48,7 @@ script:
 - mkdir travis-build && cd travis-build
 - ../configure -GNinja
 - ninja
+- ninja package package_source
 - env DESTDIR=$PWD/staging ninja install
 - |
   if [[ "${DISPATCH_ENABLE_TEST_SUITE:-}" -eq 1 ]]; then

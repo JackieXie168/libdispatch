@@ -2,6 +2,11 @@ cmake_minimum_required(VERSION 2.8.12)
 
 project (dispatch)
 set (DISPATCH_VERSION 0.1.3.1)
+set (DISPATCH_VERSION_MAJOR 0)
+set (DISPATCH_VERSION_MINOR 1)
+set (DISPATCH_VERSION_PATCH 3)
+set (DISPATCH_VERSION_TWEAK 1)
+
 set (DISPATCH_ABI_VERSION 1)
 
 list (APPEND CMAKE_MODULE_PATH "${dispatch_SOURCE_DIR}/cmake")
@@ -12,6 +17,20 @@ include (CheckCSourceCompiles)
 include (CMakePushCheckState)
 
 enable_testing()
+
+set (CPACK_PACKAGE_NAME "libdispatch")
+set (CPACK_PACKAGE_DESCRIPTION_SUMMARY "Linux port of Apple's open-source concurrency library")
+set (CPACK_PACKAGE_VERSION "${DISPATCH_VERSION}")
+set (CPACK_PACKAGE_VERSION_MAJOR "${DISPATCH_VERSION_MAJOR}")
+set (CPACK_PACKAGE_VERSION_MINOR "${DISPATCH_VERSION_MINOR}")
+set (CPACK_PACKAGE_VERSION_PATCH "${DISPATCH_VERSION_PATCH}")
+set (CPACK_RESOURCE_FILE_LICENSE "${dispatch_SOURCE_DIR}/LICENSE")
+set (CPACK_RESOURCE_FILE_README "${dispatch_SOURCE_DIR}/README.md")
+set (CPACK_PACKAGE_CONTACT "Libdispatch for Linux Maintainers.")
+set (CPACK_GENERATOR TGZ)
+set (CPACK_SOURCE_GENERATOR TGZ)
+set (CPACK_DEBIAN_PACKAGE_DEPENDS "libc6 (>=2.7), libblocksruntime0 (>=0.1), libpthread-workqueue0 (>=0.8), libkqueue0 (>=1.0)")
+include (CPack)
 
 #///////////////////////////////////////////////////////////////////////////////
 if (NOT CMAKE_BUILD_TYPE)
