@@ -1,94 +1,100 @@
 #!/usr/bin/env python
 # encoding: utf-8
+"""
+%prog [options] [-- extra_cmake_args...]
 
+Configure script for libdispatch-linux.
+"""
 import errno
-import pipes
+import optparse
 import os
-import sys
+import pipes
 import subprocess
+import sys
 
-HERE = os.path.dirname(__file__)
-SOURCE_TREE = HERE
-THIRD_PARTY = os.path.join(HERE, 'thirdparty')
-
-sys.path.insert(1, os.path.join(THIRD_PARTY, 'click'))
-import click
-del sys.path[1]
+SOURCE_TREE = os.path.dirname(__file__)
 
 
 def shelljoin(args):
     return " ".join(pipes.quote(arg) for arg in args)
 
 
-@click.command()
-@click.pass_context
-@click.option('--prefix', type=click.Path(), show_default=True,
-              default='/usr/local')
-@click.option('--cc', 'c_compiler', default='clang', metavar='COMPILER',
-              envvar='CC', help='The C compiler to use')
-@click.option('--c++', 'cxx_compiler', default='clang++', metavar='COMPILER',
-              envvar='CXX', help='The C++ compiler to use')
-@click.option('--enable-test-suite/--disable-test-suite', default=False)
-@click.option('--release', 'build_type', flag_value='Release')
-@click.option('--debug', 'build_type', flag_value='Debug')
-@click.option('--build-type', type=click.Choice(["Debug", "Release"]),
-              show_default=True, default='Release')
-@click.option('-G', '--cmake-generator', default="Unix Makefiles",
-              show_default=True,
-              help='The CMake build system generator to use.')
-@click.option('--cmake', '--cmake-executable', default='cmake',
-              type=click.Path(), show_default=True)
-@click.option('--with-sanitizers', 'clang_sanitizers', default='',
-              envvar='DISPATCH_SANITIZE')
-@click.option('-n', '--dry-run', help="Don't actually invoke CMake.",
-              is_flag=True)
-@click.argument('extra-cmake-args', nargs=-1)
-def configure(
-        ctx,
-        prefix,
-        build_type,
-        c_compiler,
-        cxx_compiler,
-        enable_test_suite,
-        cmake_generator,
-        cmake_executable,
-        dry_run,
-        clang_sanitizers,
-        extra_cmake_args):
-    """Script for configuring libdispatch's build."""
-    command_line = []
-    command_line.extend([cmake_executable,
-                         SOURCE_TREE,
-                         '-DCMAKE_BUILD_TYPE={0}'.format(build_type),
-                         '-G{0}'.format(cmake_generator)])
+def main():
+    parser = optparse.OptionParser(usage=__doc__.strip())
+    parser.set_defaults(
+        prefix='/usr/local',
+        c_compiler=os.getenv('CC', 'clang'),
+        cxx_compiler=os.getenv('CXX', 'clang++'),
+        enable_test_suite=os.getenv('DISPATCH_ENABLE_TEST_SUITE', False),
+        build_type=os.getenv('DISPATCH_BUILD_TYPE', 'Release'),
+        cmake_generator='Unix Makefiles',
+        cmake_executable='cmake',
+        llvm_sanitizers=os.getenv('DISPATCH_SANITIZE', ''),
+        dry_run=False)
 
-    command_line.append('-DCMAKE_INSTALL_PREFIX={0}'.format(prefix))
-    command_line.append('-DCMAKE_C_COMPILER={0}'.format(c_compiler))
-    command_line.append('-DCMAKE_CXX_COMPILER={0}'.format(cxx_compiler))
-    command_line.append(
-        '-DDISPATCH_ENABLE_TEST_SUITE={0}'.format(int(enable_test_suite)))
-    command_line.append('-DDISPATCH_SANITIZE={0}'.format(clang_sanitizers))
+    parser.add_option('--prefix')
+    parser.add_option('--cc',
+                      dest='c_compiler',
+                      metavar='COMPILER',
+                      help='The C compiler to use')
+    parser.add_option('--c++',
+                      dest='cxx_compiler',
+                      metavar='COMPILER',
+                      help='The C++ compiler to use')
+    parser.add_option('--enable-test-suite', action='store_true')
+    parser.add_option('--disable-test-suite',
+                      dest='enable_test_suite',
+                      action='store_false')
+    parser.add_option('--build-type', choices=["Debug", "Release"])
+    parser.add_option('--release',
+                      dest='build_type',
+                      action='store_const',
+                      const='Release')
+    parser.add_option('--debug',
+                      dest='build_type',
+                      action='store_const',
+                      const='Debug')
+    parser.add_option('-G',
+                      '--cmake-generator',
+                      help='The CMake build system generator to use.')
+    parser.add_option('--cmake', '--cmake-executable')
+    parser.add_option('--with-sanitizers', dest='llvm_sanitizers')
+    parser.add_option('-n',
+                      '--dry-run',
+                      help="Don't actually invoke CMake.",
+                      action='store_true')
 
-    command_line.append('--no-warn-unused-cli')
-    command_line.append('--warn-uninitialized')
-    command_line.append('-DCMAKE_EXPORT_COMPILE_COMMANDS=ON')
+    opts, args = parser.parse_args()
 
-    command_line.extend(extra_cmake_args)
+    command_line = [
+        opts.cmake_executable,
+        SOURCE_TREE,
+        '-DCMAKE_BUILD_TYPE=%s' % opts.build_type,
+        '-G%s' % opts.cmake_generator,
+        '-DCMAKE_INSTALL_PREFIX=%s' % opts.prefix,
+        '-DCMAKE_C_COMPILER=%s' % opts.c_compiler,
+        '-DCMAKE_CXX_COMPILER=%s' % opts.cxx_compiler,
+        '-DDISPATCH_ENABLE_TEST_SUITE=%d' % int(opts.enable_test_suite),
+        '-DDISPATCH_SANITIZE=%s' % opts.llvm_sanitizers,
+        '--no-warn-unused-cli',
+        '--warn-uninitialized',
+        '-DCMAKE_EXPORT_COMPILE_COMMANDS=ON',
+    ]
+    command_line.extend(args)
 
-    click.secho("Invoking CMake:", fg='blue', bold=True, err=True)
-    click.echo(shelljoin(command_line), err=True)
+    print >> sys.stderr, "Invoking CMake:"
+    print >> sys.stderr, shelljoin(command_line)
 
-    if not dry_run:
+    if not opts.dry_run:
         try:
-            ctx.exit(subprocess.call(command_line))
+            sys.exit(subprocess.call(command_line))
         except OSError as e:
             if e.errno == errno.ENOENT:
-                ctx.fail("No such executable '{0}'".format(cmake_executable))
+                parser.error('No such executable %r' % opts.cmake_executable)
             else:
-                ctx.fail("Could not launch executable '{0}'".format(
-                    cmake_executable))
+                parser.error('Could not launch executable %r' %
+                             opts.cmake_executable)
 
 
 if __name__ == '__main__':
-    configure(auto_envvar_prefix='DISPATCH')
-
+    main()
