@@ -1,0 +1,26 @@
+程式語言 : Apple開放用於多核CPU平行處理的Grand Central Dispatch
+
+
+
+Grand Central Dispatch是Apple用於最新一版Mac OS 10.6的多核心平行處理技術，
+期望讓OSX在面對多核心的環境下，可以在軟體處理上，更加平衡地運用硬體資源，
+而現在Apple方面將此項技術以不依賴OSX 核心XNU的方式開放出來。
+
+以下是slashdot的新聞擷取
+引言:
+
+    "Apple has open sourced libdispatch, also known as Grand Central
+Dispatch, which is technology in Snow Leopard that makes it easier for
+developers to take advantage of multi-core parallelism. Kernel support is
+not required, but performance optimizations Apple made for supporting GCD
+are visible in xnu. Block support in C is required and is currently
+available in LLVM (note that Apple has submitted their implementation of C
+blocks for standardization)."
+
+
+全文網址
+http://apple.slashdot.org/story/09/09/11/1139212/Apple-Open-Sources-Grand-Central-Dispatch
+
+GCD技術的開放原始碼版本稱為libdispatch，以下是其官方網站，以Apache
+2.0方式發佈
+http://libdispatch.macosforge.org/ 

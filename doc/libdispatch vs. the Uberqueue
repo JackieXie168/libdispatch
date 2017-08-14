@@ -1,0 +1,104 @@
+《libdispatch vs. the Uberqueue》
+In a 「《Grand Central Dispatch》」 post I commented on Apple's new thread pool/async calling system, Grand Central Dispatch. Apple has opened the source to libdispatch, the brains behind it.
+
+So first of all, if libdispatch and X-Plane's thread pool got into a fight, libdispatch would thoroughly kick our asses. The X-Plane thread pool is a simple cross platform message queue and pool system - totally CS101. libdispatch is highly performance tuned, provides a wide variety of dispatch semantics, and tries a lot harder to be low overhead.
+
+I'm feeling okay about that. The X-Plane thread pool took about two days to code, and pretty much just works the way we want. In particular, the overhead may be higher than libdispatch, but we know what we put in our thread pool, and we know our work items are fairly big; thread pool overhead doesn't show up in a profile.
+
+There is one trick that we can do that libdispatch doesn't do (and probably shouldn't): inspecting the work queue. Our pool lets a client "edit" the queue, going in and pulling out any queued items that it has a grudge against. The main thread pool is locked for editing, so editing has to be fast and worth it.
+
+Why allow such a weird operation? Well, X-Plane's work items are fairly expensive. And there is one case where this is a win. When it comes time to throw out a whole hunk of scenery, we need to wait until all of its enqueued mesh-building work tasks are done. We also, coincidentally, happen to throw out scenery at the same time that we shift the coordinate system, which is something you don't want to do while meshes are being built. The whole fire drill goes something like this:
+Insert a "barrier" into the queue. This is a custom object that basically clogs all of the worker threads. Once the barrier is in place we know that our worker threads are idle.
+"Edit" the queue removing any enqueued (but not running) tasks that belong to scenery that is going to get thrown out. This is strictly an optimization, but a nice one.
+Wait for the barrier to fall into place. Basically we need to wait for each core to finish whatever it was doing.
+At this point, the scenery system is "frozen". We can throw out any old scenery, and shift the coordinate system. (In fact, our barrier let's us reuse the hijacked, sleeping worker threads, so they do the shift.
+Pull the barrier out and let things resume as normal.
+The win of "editing" out in-flight scenery asks is that it makes management of step 4 a lot easier. When we throw out old scenery, how do we know that we don't have pending tasks based on that mesh, tasks that would be operating on deallocated memory if we throw out their scenery underneath them? There are three ways to manage this:
+Ref-count all of the scenery. The "tasks" to operate on the scenery add a ref-count, effectively deferring deallocation of each mesh until it's task has completed. This sucks for one reason: memory is usually rather tight, and we might end up "ballooning" memory as new scenery is loaded while old scenery hasn't gone down to zero references and been thrown out.
+Simply wait for all of the tasks we care about to complete before we throw out old scenery. If the shift and load is waiting on this (see above about memory) then this sucks too - our tasks might be at the back of a very long queue.
+Option 3 is our "editing" trick. By first inserting the barrier and then editing out any tasks in the queue, we guarantee that by the time our barrier stops threaded operation, every task referencing the scenery we want to throw out has either been (a) run to completion or (b) edited out of the queue before it could run.
+Final thoughts: a lot of this voodoo is necessary only because our coordinate system 'shifts' in a big global nasty ugly operation. I have been researching a way to run on a single coordinate system...the short of it is that it looks like we'd need programmable vertex shaders as minimum hardware to do this - someday but not just yet. Once we don't have to shift, all scenery operation could be truly async, and a shift becomes a matter of dependent async tasks:
+When we detect that we'd like scenery to shift, we mark the tiles we don't like as "dead" and tag each one with a completion task - the tile we'd like loaded when it is destroyed.
+The dead tile stops queuing async work.
+When the last task for the tile completes, it signals the tile, which queues itself for an asynch-destroy operation.
+When the tile destroys itself the last thing it does is queue an async load of the new tile.
+What's cool about this "chaining" process is that it guarantees in-order sequential operation with respect to memory, but each dead tile and replacement tile might be doing this on the fly as quick as they can, with minimal access to the main thread.
+
+
+《Grand Central Dispatch》
+Apple has this new API in Snow Leopard called "Grand Central Dispatch". Basically it's a bunch of message queue facilities - the idea is that with concurrent message queues it will be easier for people to write scalable code on multicore machines; if the OS libs use the same API and queues, then there won't be thrash between library worker threads and app worker threads. (OS X does create a fair number of worker threads on your behalf - you can see them in the debugger in 10.5.)
+
+So first of all: told you so.
+
+Now that I got that out of my system: it was interesting to read Apple's documentation on how queues (their name for message queues whose messages are "do this") solve threading problems. The docs spend a lot of time describing how much you won't have to lock, but I don't think this is entirely true. The rule is pretty simple:
+Resources that are owned entirely and exclusively by the "task" that has been dispatched to the queue do not need to be locked, because a task cannot be run in two places at once.
+And that alone is a pretty nice improvement! (If I could have a nickel for every forum thread I read where people suggest two threads and a mutex as a way to do concurrent processing. The over-use of a mutex as something it is not is probably it's own blog topic.) At least if we can separate our data object to be processed from the world, now it is lock free.
+
+But what do we do if that processing task needs to talk to the rest of our application? There are basically only a few options:
+Make the APIs that we have to call non-blocking and lock-free.
+Put fine-grained locking into the various APIs (e.g. use internal locks as needed). Now there is a risk that our tasks can block, but perhaps it won't be too bad. Use a performance analyzer to see if this is hosing us.
+Put some kind of course-grained lock on the entity the task will need - perhaps for the entire execution of the task, perhaps for longer. At this point you have to wonder if you're losing concurrency.
+X-Plane uses a mix of strategies 2 and 3. Basically any API that is called from the main thread (which runs the rendering loop) gets optimized using technique 1 for minimum latency. The rest of the APIs can use techniques 1 or 2, whichever is easier.
+
+An example of strategy 1: by using atomics to swap textures into their container objects, we don't need to obtain a lock on a texture object to use it.
+
+Strategy 1 and 2 combine: a central registry of objects is used only for async loader code. Once we have an object, we are lock free. (Objects are reference counted, and reference counting can be lock-free - see also the glibc++ string implementation.)
+
+A final comment: Apple suggests replacing fine-grained resource locking (e.g. grab a lock, do a few things, release the lock) with queueing a "block" (a small piece of code) on a serial queue (a message queue with only one thread). This can be done synchronously or asynchronously.
+It's refreshing to see someone abusing threading primitives by suggesting that a semaphore be used instead of a mutex - normally on the net I see people doing just the opposite (and wondering why their design has 5000 edge cases and blows up as soon as they add a third thread).
+If the block is queued asynchronously this is a performance win. Except for the part where you don't know if your work has actually been done. It's a great refactoring if you can get away with it but I wouldn't expect to hit this case any time soon.
+If the block is queued synchronously this solution is exactly the same concurrency wise as a mutex.
+Except...I'm not 100% sure of that last statement. If I take a lock on my own thread, there is no thread switch if the lock is not contested, and I might not even make a kernel switch (if the mutex is a critical section or another light-weight lock that can spin a few times before trapping).
+
+By comparison, my understanding is that a message queue is at least a message queue - I would normally expect the serial thread with sync queue to have to "toss" the work to another thread, then wait (because if the main thread did the work, the worker thread would be available to pick up work tasks out of order). But perhaps Apple has optimized this, with a fast path to execute synchronously queued tasks on the calling thread when a serial queue is "idling".
+
+
+《The Über-Queue》
+In redesigning the background processing code for X-Plane, I am revisiting message queues.
+
+Requirements on Queue Design
+Anyone can be a worker thread. To be a worker thread, you simply pull off a task and execute it. (But see barriers below.) The important thing here is that we can have more than one worker thread for one giant queue, so that dispatch models CPU cores rather than categories of work.
+Anyone can queue work - no requirement to be the main thread (just about any message queue design does this).
+Problems Left for Client Code
+Client code must not delete objects that are required by pending work tasks (scheduled or running). Doing so would be, um, bad.
+Client code cannot halt running work tasks - doing this would introduce a huge amont of complexity for very little value.
+Client code must use its own mechanism for getting "receipts" from finished tasks.
+To this last point, typically while we want to schedule everybody in one big queue and have all hardware work on tasks, we want to dispatch our results to disparate locations in the app in a very client-code-specific way. In our case, we'll typically put confirmation code in the specific task objects, such as sending a message to our parent subsystem saying we're finished.
+
+Queue Editing
+
+While it's not strictly not strictly necessary, we provide an atomic editing operation on our message queue - basically a client can go in and reorder pending tasks. There are a few important uses for this:
+It allows for prioritized queueing - I can queue a work task and then edit the queue to put my task first.
+I can find "stale" work objects and remove them (replacing them with no-ops). Normally if I need to delete an object that is referenced by a pending task, I need to wait for the task (and have some way of knowing that the task has completed, specific to the task). But if I can clean the queue first I can remove unnecessary scheduled tasks and prevent work on soon-to-be-dead objects.
+Being able to place a task in a specific place is useful for barriers.
+Barriers
+
+Barriers are actually implemented as clients on top of the scheduling system - their only requirement is to know the exact number of worker threads. (This imposes less generality on the worker thread pool.)
+
+A barrier is implemented as a pair of message queues (or even semaphores, since all we care about is counting) and one work task for each thread.
+
+We use the barrier to halt thread processing by inserting all of the work tasks into the queue; each one effectively signals back to us and holds up that worker. We thus wait for four receipts from the work tasks indicating that all four workers are now waiting on us. At this point, we are running and background processing is halted.
+
+To resume processing, we send messages back to the worker threads and wait again. They acknowledge and are then finished. They send an acknowledge back to us because we may want to deallocate the resources used in the barrier and cannot do so until we know that all worker threads have woken up and finished their code.
+
+We can use barriers when we need a true halt of processing; we can also use them as markers in the stream to indicate that we are done with a range of tasks.
+
+If we want to wait for only one task to be done, we're better off having it signal us directly. The power of barriers is that, because they halt all processing, we can be sure that all tasks before us have finished. But the real purpose of barriers is to halt the processing of tasks that are behind us.
+
+
+《Message Q's and Sins》
+Well, it's been at least a year since I ranted about how much I love message queues, so what the heck. Every programmer has a pet idiom and for me the message queue is it - from my perspective it represents one of the cleanest ways to add parallelism to an app.
+When an algorithm isn't naturally parallel, pipelining is often the best way to split it across cores. Message queues are great for creating the links between the pipeline stages.
+Message queues naturally solve the problem of resource ownership without extra locking. Since the message cannot be at the send and receive side of the queue at the same time, "owning the message = owning the resource" gives you clean resource allocation. Because there are no locks, you don't have to worry about dead-lock cases or locks getting contested.
+A typical message-queue design in X-Plane involves two queues - one sends work to be done to a worker thread and the other sends the results back to the main thread. The worker thread blocks and only runs when there are tasks and the main thread polls the "done queue" periodically at times when it can handle the results. There can be more than one worker thread if desired.
+
+When evaluating this kind of design we have to consider two performance aspects: throughput and latency.
+
+For throughput message-queue designs work pretty well. We can easily scale up the number of worker threads based on the number of cores and simply pile a huge number of tasks into the work queue - that'll keep all of those cores busy.
+
+Where message queue designs don't work as well is latency. When we queue a new task to be done, we have no idea how long it will take to get done, but we know the answer is "longer than if we didn't have a worker thread". Besides the time for the message to get to the thread (that thread might be asleep and have to wake up and then wait for CPU time) we also might have a whole pile of messages ahead of us. Some designs use priority message queues to get preferential dispatch of messages, but even then all threads might be busy. (Even more complexity can be added to try to address that case.)
+
+We also pick up latency on the return side, since the main thread has to check for finished results, which might only happen once per simulation frame.
+
+Fortunately for X-Plane, the kinds of things we push out to threads usually aren't very latency sensitive - we build up 3-d scenery, but we queue it well before we arrive at that location, so the additional latency is acceptable.
+

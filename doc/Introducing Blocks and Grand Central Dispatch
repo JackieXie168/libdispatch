@@ -1,0 +1,318 @@
+Introducing Blocks and Grand Central Dispatch
+
+Grand Central Dispatch (GCD) is a revolutionary approach to multicore computing that is woven throughout the fabric of Mac OS X version 10.6 Snow Leopard. GCD combines an easy-to-use programming model with highly-efficient system services to radically simplify the code needed to make best use of multiple processors. The technologies in GCD improve the performance, efficiency, and responsiveness of Snow Leopard out of the box, and will deliver even greater benefits as more developers adopt them.
+
+The central insight of GCD is shifting the responsibility for managing threads and their execution from applications to the operating system. As a result, programmers can write less code to deal with concurrent operations in their applications, and the system can perform more efficiently on single-processor machines, large multiprocessor servers, and everything in between. Without a pervasive approach such as GCD, even the best-written application cannot deliver the best possible performance, because it doesn't have full insight into everything else happening in the system.
+
+GCD is implemented as a set of extensions to the C language as well as a new API and runtime engine. While initially inspired by the challenge of multicore computing, these actually solve a more general problem: how to efficiently schedule multiple independent chunks of work. GCD does this using four primary abstractions:
+
+    * block objects
+    * dispatch queues
+    * synchronization
+    * event sources
+
+This article provides an high-level overview of these abstractions and their API, as well as examples of how to use them.
+Block Objects
+
+Block objects (informally, 「blocks」) are an extension to C, as well as Objective-C and C++, that make it easy for programmers to define self-contained units of work. Blocks are similar to — but far more powerful than — traditional function pointers. The key differences are:
+
+    * Blocks can be defined inline, as 「anonymous functions.」
+    * Blocks capture read-only copies of local variables, similar to 「closures」 in other languages
+
+This is kind of functionality is common in dynamically-typed interpreted languages, but has never before been widely available to C programmers. Apple has published both the Blocks Languages Specification and our implementation as open source under the MIT license, added blocks support to GCC 4.2 and clang, and has submitted it for consideration as part of the next version of the C programming language.
+Syntax
+
+A block variable looks like a function pointer, except with a caret (『^』) instead of an asterisk (『*』).
+
+void (^my_block)(void);
+
+The resulting variable can be initialized by assigning it a block literal with the same signature (arguments and return types).
+
+my_block = ^(void){ printf("hello world\n"); };
+
+The compiler will infer the return type of the block literal, so you typically don't need to specify it explicitly. In addition, if there are no arguments the parameter list can be omitted, allowing the very concise:
+
+my_block = ^{ printf("hello world\n"); };
+
+This variable can then be invoked just like a function pointer:
+
+my_block(); // prints 「hello world\n」
+
+What's really powerful about blocks is that they enable developers to wrap much more complex functions—along with their arguments and data—in a way that can be easily passed around in a program, like any other variable. In more complex cases, you are encouraged to use a typedef for the sake of legibility, e.g.:
+
+typedef void (^blockWithString)(char*);
+char *greeting = 「hello」; 
+blockWithString b = ^(char* place){ printf("%s %s\n", greeting, place); };
+greeting = 「goodbye」;
+b(「world」); // prints 「hello world\n」
+
+Note how the block captures a read-only copy of the variable 「greeting」, so it is isn't affected by changes to that variables. If you need to modify an external variable, you can use static or global variables as usual, or the new __block storage type:
+
+__block char *mutable_greeting = 「hello」;
+c = ^{ mutable_greeting = 「goodbye」; };
+printf("%s", mutable_greeting); // -> 「hello」
+c();
+printf("%s", mutable_greeting); // -> 「goodbye」
+
+A __block variable will stay valid as long as any of the blocks that reference it, but need not be visible at file or global scope, allowing better encapsulation.
+Memory Management
+
+Internally, a block object is implemented as a function pointer plus context data and optional support routines. It is allocated directly on the stack for efficiency, which means that you need to copy a block to the heap (and release it when you are done) if you want it to persist outside its initial scope.
+C Functions
+
+In C, copying a block to the heap is done using the Block_copy function, which must always be paired with a Block_release:
+
+b2 = Block_copy(b);
+Block_release(b2);
+
+Fortunately, the system routines which take block arguments handle this for you, so you rarely need to worry about this unless you are implementing your own API that holds onto a block.
+Objective-C Messages
+
+Importantly, block objects are laid out in such a way that they are also Objective-C objects if that runtime is present. The above routines then become synonymous with the equivalent Cocoa calls:
+
+b2 = [b copy]; 
+[b2 release];
+
+This means blocks automatically participate in traditional Cocoa reference counting:
+
+[b2 retain];
+[b2 release];
+
+This also means that any pointers to other Objective-C objects are also reference counted properly. Even better, if you are using garbage collected Objective-C this is all handled for you automatically.
+C++ Behaviors
+
+Block objects are available in both C++ and Objective-C++. They use the same block management API as C, but with additional considerations:
+
+    * Unlike Objective-C, C++ doesn't have a standard reference-counting mechanism. Thus, you need to manually ensure that any objects referenced by your block (including the implicit this pointer, if any) continue to exist for the lifecycle of the block or any of its copies.
+    * Any stack-based C++ objects referenced by the block must have a const copy constructor, which will be invoked whenever the block is created or copied.
+    * The block will invoke any appropriate destructors when objects it has constructed are released.
+
+Dispatch Queues
+
+Developers schedule blocks for execution by assigning them to various system- or user-defined dispatch queues, which GCD uses to describe concurrency, serialization, and callbacks.
+
+dispatch_queue_t a_queue;
+
+You typically submit blocks to a queue asynchronously, using an API such as dispatch_async:
+
+dispatch_async(a_queue, ^{ do_not_wait_for_me(); });
+
+This function enqueues the block on the specified queue then returns immediately. In the background, GCD takes care of dequeuing and executing each block on a first-in/first-out (FIFO) basis. Exactly when and where it is run depends on which type of queue is used: global, private or main.
+Global Concurrent Queues
+
+The "root level" of GCD is a set of global concurrent queues for every UNIX process, each of which is associated with a pool of threads. Most of the time you will simply use the default queue:
+
+dispatch_queue_t q_default;
+q_default = dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0);
+
+which can also be accessed as:
+
+q_default = dispatch_get_global_queue(0, 0);
+
+The second parameter is reserved for future expansion, but for now must be zero. You use the default queue to run a single item in the background or to run many operations at once. For the common case of a 「parallel for loop」, GCD provides an optimized 「apply」 function that submits a block for each iteration:
+
+#define COUNT 128
+__block double result[COUNT];
+dispatch_apply(COUNT, q_default, ^(size_t i){
+ 	result[i] = complex_calculation(i);
+ });
+double sum = 0;
+for (int i=0; i < COUNT; i++) sum += result[i];
+
+Note that dispatch_apply is synchronous, so all the applied blocks will have completed by the time it returns.
+Private Serial Queues
+
+In addition to the global concurrent queues, developers can create their own private serial queues. These are typically used to enforce mutually exclusive access to critical sections of code. One common use is to serialize access to shared data structures:
+
+__block double sum = 0;
+dispatch_queue_t q_sum = dispatch_queue_create("com.example.sum", NULL);
+
+The first parameter should be a unique and descriptive reverse-DNS name to assist debugging, and the second parameter is currently NULL to allow for future expansion.
+
+We can use this queue to rewrite the previous example using a shared accumulator:
+
+#define COUNT 128
+dispatch_apply(COUNT, q_default, ^(size_t i){
+ 	double x = complex_calculation(i);
+	dispatch_async(q_sum, ^{ sum += x; });
+ });
+dispatch_release(q_sum);
+
+All GCD objects use a reference-counting scheme similar to Cocoa, which is why you need to release everything you create.
+
+Traditionally this sort of serialization required using locks, which could easily lead to performance problems and non-deterministic behavior -- not to mention 「deadlocks」 that would freeze an entire program. Serial queues solve the same problem with far less complexity and superior performance. Error handling is also simpler and safer, since the queue is automatically 「unlocked」 whenever the block exits.
+
+Also unlike locks, dispatch queues can be invoked asynchronously. Serial queues are individually scheduled on the default queue, so using lots of them enables even greater concurrency and responsiveness, as well as virtually eliminating the possibility of deadlocks. This scheduling approach is why GCD is sometimes described as "islands of serialization in a sea of concurrency".
+Main Queue
+
+In addition to the global queues and private queues, every process has a unique, well-known main queue -- always a serial queue -- which is associated with the main thread of the program:
+
+dispatch_queue_t q_main = dispatch_get_main_queue();
+
+For high-level applications, the main queue is associated with a CFRunLoop (for Core Foundation) or NSRunLoop (for Cocoa) on the main thread. These each "drain" the main queue at the end of their work cycles, as if it were a CF/NSRunLoop source installed within the set of 「common modes.」
+
+For traditional UNIX programs, the main queue acts as a uniform low-level runloop, though you must explicit call it at the end of your main() function:
+
+int main( int argc, const char* argv[] )
+{
+	 ...
+      dispatch_main();
+}
+
+This opens the door to low-level software adopting an event-driven paradigm similar to that long used by GUI programs, as we will see in the final section.
+Implementation
+Atomic Operations
+
+As the centerpiece of both serialization and concurrency, queues need to be extremely efficient yet thread-safe, so they can be quickly yet safely accessed from any thread. To achieve this, blocks are added and removed from queues using atomic operations available on modern processors, which are guaranteed to maintain data consistency even in the presence of multiple cores. These are the same primitives used to implement locks, and are inherently safe and fast.
+
+Unlike locks, however, queues are take up very few resources and don't require calling into the kernel. This makes it safe and efficient to use as many as you need to describe the fine-grained structure of your code, rather than having to use larger chunks to minimize the overhead of manually managing locks and threads.
+Thread Pools
+
+GCD will dequeue blocks and private queues from the global queues a first-in/first-out (FIFO) basis as long as there are available threads in the thread pool, providing an easy way to achieve concurrency. If there is more work than available threads, GCD will ask for the kernel for more, which are given if there are idle logical processors. Conversely, GCD will eventually retire threads from the pool if they are unused or the system is under excessive load. This all happens as a side effect of queuing and completing work, so that GCD itself doesn't require a separate thread.
+
+This approach provides optimal thread allocation and CPU utilization across a wide range of loads, though it works best if threads aren't forced to wait behind locks or I/O requests. Fortunately GCD provides mechanisms to help prevent that from happening, as discussed below.
+Synchronization
+
+Grand Central Dispatch provides four primary mechanisms for tracking completion of asynchronous work:
+
+    * synchronous dispatch
+    * callbacks
+    * groups
+    * semaphores
+
+Synchronous Dispatch
+
+While asynchronous calls give GCD maximum scheduling flexibility, sometimes you do need to know when that block has finished execution. One option is to just add the block synchronously using dispatch_sync:
+
+dispatch_sync(a_queue, ^{ wait_for_me(); });
+
+However, this requires the parent thread (and queue) to idle until it completes, and thus shouldn't be used for non-trivial operations. Instead, use one of the following options: callbacks, groups or semaphores.
+Callbacks
+
+The simplest way to resume work after a block completes is to nest another dispatch back to the original queue, using a completion callback:
+
+dispatch_retain(first_queue); 
+dispatch_async(a_queue, ^{ 
+	do_not_wait_for_me();
+	dispatch_async(first_queue, ^{ i_am_done_now(); });
+	dispatch_release(first_queue); 
+ });
+
+Note that since the queue is referenced by the block, it must be explicitly retained until it is invoked.
+Groups
+
+Another option is to use a dispatch group, while allows you to track block completion across multiple queues:
+
+dispatch_group_t my_group = dispatch_group_create();
+dispatch_group_async(my_group, a_queue, ^{ some_async_work(); });
+dispatch_group_async(my_group, b_queue, ^{ some_other_async_work(); });
+dispatch_group_notify(my_group, first_queue, ^{ do_this_when_all_done(); });
+dispatch_release(my_group);
+
+Note that since GCD calls always retain objects passed to them it is safe to release my_group even while the 「notify」 is pending.
+
+In this example, do_this_when_all_done() is executed only after every one of the blocks in the group have completed. It is also perfectly legal for a block to add additional work to a group during execution, allowing a potentially unbounded set of operations to be tracked.
+
+Alternatively, you can instead halt execution until the group completes in a manner analogous to pthread_join(3):
+
+dispatch_group_wait(my_group, DISPATCH_TIME_FOREVER);
+do_this_when_all_done();
+
+Note however that dispatch_group_wait pauses the current thread much like a dispatch_sync, and should therefore be used sparingly.
+Semaphores
+
+Finally, GCD has an efficient, general-purpose signaling mechanism known as dispatch semaphores. These are most commonly used to throttle usage of scarce resources, but can also help track completed work:
+
+dispatch_semaphore_t sema = dispatch_semaphore_create(0);
+dispatch_async(a_queue, ^{ some_work(); dispatch_semaphore_signal(sema); });
+more_work(); 
+dispatch_semaphore_wait(sema, DISPATCH_TIME_FOREVER);
+dispatch_release(sema);
+do_this_when_all_done();
+
+Like other GCD objects, dispatch semaphores usually don't need to call into the kernel, making them much faster than regular semaphores when there is no need to wait.
+Event Sources
+
+In addition to scheduling blocks directly, developers can set a block as the handler for event sources such as:
+
+    * Timers
+    * Signals
+    * File descriptors and sockets
+    * Process state changes
+    * Mach ports
+    * Custom application-specific events
+
+When the source 「fires,」 GCD will schedule the handler on the specific queue if it is not currently running, or coalesce pending events if it is. This provides excellent responsiveness without the expense of either polling or binding a thread to the event source. Plus, since the handler is never run more than once at a time, the block doesn't even need to be reentrant.
+Timer Example
+
+For example, this is how you would create a timer that prints out the current time every 30 seconds -- plus 5 microseconds leeway, in case the system wants to align it with other events to minimize power consumption.
+
+dispatch_source_t timer = dispatch_source_create(DISPATCH_SOURCE_TYPE_TIMER, 0, 0, q_default); //run event handler on the default global queue
+dispatch_time_t now = dispatch_walltime(DISPATCH_TIME_NOW, 0);
+dispatch_source_set_timer(timer, now, 30ull*NSEC_PER_SEC, 5000ull);
+dispatch_source_set_event_handler(timer, ^{
+	printf(「%s\n」, ctime(time(NULL)));
+});
+
+Sources are always created in a suspended state to allow configuration, so when you are all set they must be explicitly resumed to begin processing events.
+
+dispatch_resume(timer);
+
+You can suspend a source or dispatch queue at any time to prevent it from executing new blocks, though this will not affect blocks that are already being processed.
+Custom Events Example
+
+GCD provides two different types of user events, which differ in how they coalesce the data passed to dispatch_source_merge_data:
+
+    * DISPATCH_SOURCE_TYPE_DATA_ADD accumulates the sum of the event data (e.g., for numbers)
+    * DISPATCH_SOURCE_TYPE_DATA_OR combines events using a logical OR (e.g, for booleans or bitmasks)
+
+Though it is arguably overkill, we can even use events to rewrite our dispatch_apply example. Since the event handler is only ever called once at a time, we get automatic serialization over the "sum" variable without needing to worry about reentrancy or private queues:
+
+__block unsigned long sum = 0;
+dispatch_source_t adder = dispatch_source_create(DISPATCH_SOURCE_TYPE_DATA_ADD, 0, 0, q_default);
+dispatch_source_set_event_handler(adder, ^{
+	sum += dispatch_source_get_data(adder);
+});
+dispatch_resume(adder);
+
+#define COUNT 128
+dispatch_apply(COUNT, q_default, ^(size_t i){
+	unsigned long x = integer_calculation(i);
+	dispatch_source_merge_data(adder, x);
+});
+dispatch_release(adder);
+
+Note that for this example we changed our calculation to use integers, as dispatch_source_merge_data expects an unsigned long parameter.  
+File Descriptor Example
+
+Here is a more sophisticated example involving reading from a file. Note the use of non-blocking I/O to avoid stalling a thread:
+
+int fd = open(filename, O_RDONLY);
+fcntl(fd, F_SETFL, O_NONBLOCK);  // Avoid blocking the read operation
+dispatch_source_t reader = 
+  dispatch_source_create(DISPATCH_SOURCE_TYPE_READ, fd, 0, q_default); 
+
+We will also specify a 「cancel handler」 to clean up our descriptor:
+
+dispatch_source_set_cancel_handler(reader, ^{ close(fd); } );
+
+The cancellation will be invoked from the event handler on, e.g., end of file:
+
+typedef struct my_work {…} my_work_t;
+dispatch_source_set_event_handler(reader, ^{ 
+	size_t estimate = dispatch_source_get_data(reader);
+	my_work_t *work = produce_work_from_input(fd, estimate);
+	if (NULL == work)
+		dispatch_source_cancel(reader);
+	else
+		dispatch_async(q_default, ^{ consume_work(work); free(work); } );
+});
+dispatch_resume(reader);
+
+To avoid bogging down the reads, the event handler packages up the data in a my_work_t and schedules the processing in another block. This separation of concerns is known as the producer/consumer pattern, and maps very naturally to Grand Central Dispatch queues. In case of imbalance, you may need to adjust the relative priorities of the producer and consumer queues or throttle them using semaphores.
+Conclusion
+
+Grand Central Dispatch is a new approach to building software for multicore systems, one in which the operating system takes responsibility for the kinds of thread management tasks that traditionally have been the job of application developers. Because it is built into Mac OS X at the most fundamental level, GCD can not only simplify how developers build their code to take advantage of multicore, but also deliver better performance and efficiency than traditional approaches such as threads. With GCD, Snow Leopard delivers a new foundation on which Apple and third party developers can innovate and realize the enormous power of both today's hardware and tomorrow's.
+
+
+Updated: 2009-09-25
