@@ -1,0 +1,105 @@
+Grand Central Dispatch: Exciting or Overhyped?
+
+Grand Central Dispatch is one of the most hyped parts of OS X 10.6. In this article, David Chisnall looks at the framework to see how much of the hype is justified.
+Since Apple announced OS X 10.6, one feature has had an incredibly high hype-to-details ratio in all of its marketing material. Grand Central Dispatch (GCD), we were told, would revolutionize how developers think about multithreading and make it trivial for developers to write concurrent code.
+
+Since then, OS X 10.6 was released and we all got a good look at how GCD could be used. Then, Apple announced that libdispatch, the core of GCD, was going to be open-sourced and we also got to see how it worked internally. In this article, I'm going to take a look at exactly what GCD is and see whether it lives up to the hype.
+
+
+Building Blocks
+
+The existence of closures is often seen as one of the features that differentiates a high-level language, like Lisp or Smalltalk, from a low-level language like C. A new generation of programmers growing up with languages like Ruby (a dialect of Smalltalk written by people who thought Perl syntax was a good idea) has lead to more people seeing what some have been claiming since 1958: Closures are incredibly useful. This has led to a rapid attempt to shoehorn them back into existing, lower-level, languages. The next version of the C++ standard, for example, now includes closures.
+
+With 10.6, Apple introduced closures in C, which they called blocks, after the Smalltalk term for the same feature. These are a proprietary Apple extension, but that doesn't mean that they are limited to OS X. Like Objective-C, they require support from the compiler and a small runtime library. Apple's branch of GCC supports blocks and so does clang, the new C-family front end for LLVM. There are several versions of the runtime library. Apple shipped one with OS X 10.6, and there is an open-source version of this in LLVM's compiler-rt library, although this contains several Darwinisms and so doesn't yet work on other platforms. Remy Demarest wrote a replacement a few months ago, and we've been shipping a modified version of that with É[ae]toile[ae] for several months; it has now been incorporated into GNUstep's Objective-C runtime.
+
+Blocks, therefore, can be used almost anywhere. OS X 10.6 provides a number of new places where they can be used. All the Cocoa collection classes, for example, support enumeration by blocks, but their penetration goes a lot deeper, right down into the C standard library. Most C developers will be familiar with functions like qsort(), the C standard library implementation of a Quicksort, which takes a function pointer as an argument for comparing elements in two arrays. Because OS X's libc is based on the FreeBSD implementation, it also includes similar functions that implement mergesort and heapsort. With 10.6, each of these now has a _b variant, for example qsort_b(). These are identical to the original versions, but take a block instead of a function pointer as the comparison function.
+
+So how do blocks work? When you create a block, you create a function inside another function, like this:
+
+	int (^compare)(void*,void*) = ^(void *a, void *b)
+	{
+	        // Do some calculation
+	        return comparison_result; 
+	};
+    
+The compare variable now contains a pointer to a block. You can use it like a function pointer, calling it just as you would a function, but there are subtle differences. The code inside the block can refer to any variables valid inside the scope where the block was declared. By default, the block will only get a copy of these variables, but if they are declared with the __block modifier, then the block and the enclosing scope will refer to the same copy:
+
+	__block int a = 1;
+	void (^aBlock)(void) = ^{ a++; };
+	aBlock();
+	aBlock();
+	// Now a == 3;
+
+Although the lines aBlock() look like normal function invocations, they are not. When you call a normal function, or a function pointer, the function name is a variable containing the address of the function. The compiler will push the arguments onto the stack (or into registers) and then jump to this address. Blocks works slightly differently. The block pointer is a pointer to a structure. This contains, among other things, a pointer to a function. When you call the block, you are really calling this function, with the block as a hidden first argument.
+
+The existence of the hidden argument is what allows the block function to refer to external variables. Other fields in this structure contain pointers to the other variables. The implementation details are a bit more complicated than this. For example, multiple blocks can refer to the same on-stack variable, and the blocks can persist longer than the enclosing scope. This requires the variable to be copied off the stack and into a reference-counted structure. Objective-C and C++ objects also need to have destructors run when the final block referencing them is destroyed. Fortunately, the blocks runtime hides all these messy details from most programmers, just as the Objective-C runtime hides the messy details of message sending from programmers.
+
+
+Organizing Events
+
+Around 2000, the FreeBSD kernel team began noticing that the poll() system call didn't scale very well, and that there were a lot of different messages that the kernel might want to send to userspace that weren't handled in a consistent way. They were not the first to notice this; Solaris (and Windows NT) Completion Ports are both solutions to this problem.
+
+The FreeBSD solution was the Kqueue framework, which provides two new system calls. The kqueue() call creates a new event queue, and the kevent() call modifies the queue and receives events. This framework has since been ported to the other BSDs. OS X uses a modified FreeBSD kernel to provide the BSD subsystem and inherits Kqueue from there.
+
+Rather than just import it and ignore it, Apple extended Kqueue on Darwin to support things like messages from Mach ports and other Darwin-specific things. This means that Kqueue is a generic way of getting messages from the kernel. This includes file descriptors being ready for reading or writing, timer events, signals, Mach events, process creation, and so on.
+
+This made it possible to port most of GCD to FreeBSD very quickly. Apple released the core of GCD, the libdispatch library, under the Apache 2.0 license. Most of the initial port to FreeBSD involved creating a build system that didn't require XCode and adding #ifdef statements around the Mach-specific parts.
+
+
+Join the Queue
+
+So, why have I been talking about blocks and Kqueue, when I said I was going to talk about Grand Central? Because, at the core, GCD is a way of joining these two features together. GCD is a mechanism for managing queues that run blocks. They can also use pure function pointers; a function pointer with a data pointer is semantically equivalent to a block, but a bit less user-friendly. GCD is event-driven. Queues run blocks in response to events. These can then add other blocks to other queues and so on.
+
+Each queue has a priority, like a thread. Conceptually, you can think of each queue as being a lightweight thread. Under the hood, they use the pthread_workqueue family of calls to manage threads. These are (more or less undocumented) system calls added with OS X 10.6 that handle the creation of a group of threads responsible for handling events.
+
+Work queues are fundamental to the programming model used for GCD. They are effectively FIFOs into which you push blocks. There are two kinds of queues: ones that must be run in series and ones that may be run in parallel. If you add two blocks to a queue of the first type, the one will be run and then the other. With the second type, the same may happen, or the two blocks may execute concurrently in separate threads.
+
+This is where the pthread_workqueue_ family of calls comes in. This allows the kernel to decide the number of threads to create. By default, it will create one thread for each CPU and for each priority level. If you create workqueues with two priority levels on a quad-core computer, you will get eight threads. The story doesn't end quite there, however, because the kernel is aware of the global system load. If there are already a lot of busy threads, you may only get two. Your program will then run on one core, and other programs will run on others, reducing cache churn and context switch overhead. If, on the other hand, most of your threads are blocking waiting for I/O, then you may get some more. This extra support hasn't yet made it into the FreeBSD port, which is a shame because it's one of the nicer features of GCD.
+
+
+But I Can already Do That…
+
+Most articles about GCD have been filled with comments about how it's possible to do the same thing with existing technologies, or how other languages can already do the same thing. This is true. There is (almost) nothing new, conceptually, in GCD. That said, the same is largely true of OS X as a whole; it is mostly a set of implementations of ideas from the 1980s and earlier. The same is true of most modern operating systems and languages, but that doesn't mean that they are not worth using.
+
+Closures are certainly not new. They were a core part of the Lisp language back in 1958. Similar functionality has been available in C as a GNU extension in the form of nested functions, although these had a few more limitations. That doesn't mean that they are not useful; quite the reverse.
+
+Thread pools, likewise, are not a new concept and neither is the concept of working with queues. The very fact that GCD can be ported to FreeBSD without needing any kernel modifications shows that it was possible to implement something equivalent (although slightly less efficient) in your own code already.
+
+So, what is the novelty in GCD? To answer that, let's first take a look at how you would generally write similar code without using it. The simplest way of indicating that tasks can be run in parallel is to create a new thread for each one. There are some big differences between the cost of adding a task to a queue. Critics of GCD have argued that it's a work-around for Apple's inferior threading system and so isn't required in their favorite OS, so when I look at the costs of both operations I'll just look at the minimum cost and avoid anything Darwin-specific. When you create a new thread, on a typical UNIX-like system, you need to:
+
+Allocate at least one page for the stack. This will cause a (slow) TLB fault when the thread starts.
+
+Allocate at least one page for the thread-local storage (TLS) segment and copy its data across. The Darwin linker doesn't support TLS segments, but the pthread_key family of calls incurs similar overhead.
+
+Create the in-kernel data structures required for the thread and insert it into the run queue (this involves a context switch into kernel space and back).
+This is a fairly significant amount of overhead. In contrast, Apple describes the cost of adding a task to a queue as requiring fewer than 15 instructions. This is somewhat misleading. One of those 15 instructions has the LOCK prefix, and so is about the slowest x86 instruction possible, and if there is contention then one of these instructions is a jump, so these 15 instructions may be executed more than once. In common cases, however, the cost is only slightly more than the cost of a function call, and less than the cost of a system call.
+
+That's only half of the story though. If you have eight threads and only one CPU, then the kernel will be periodically swapping them in and out. This has a relatively low minimum overhead; the kernel needs to service a timer interrupt, save the registers from one thread, load them from another, and then return to user space. There are a few other hidden costs, however. Each thread is working on something different and, in a well-designed program, will have mostly disjoint working sets (if they didn't, then you'd get a lot of overhead from locking). That means that each thread will be want different bits of memory to be in the cache and TLB, and every time you swap between them you will get churn on both of these, which will slow everything down.
+
+Compare that with the cost of swapping between eight work queues in one thread. GCD will run a block from one queue to completion, then run one from another, and so on. The overhead for going from one block to the next is about the same as a function call. When one block finishes, its TLB and cache lines aren't needed anymore, so displacing them is not a problem.
+
+This model may seem familiar, as it's basically cooperative multitasking. One way of thinking about this bit of GCD is as an N:M threading model, where the kernel threads are preemptive and the user space threads are cooperative. Cooperative multitasking gives better throughput, but has the disadvantage that one task can kill responsiveness for the entire system. In this case, the tasks are all owned by one process, so the worst that can happen is the process stalls itself. GCD can work around this by spawning a few more kernel threads if the cooperative threads are not completing blocks fast enough.
+
+
+Synchronization
+
+The most difficult thing about multithreaded programming is synchronization. Multithreading, really, is a hack created for speed. The advantage of using separate threads instead of separate processes is that you don't need to flush the TLB when switching between them and you can pass pointers around (the second point is blurred on some systems[md]for example, anything with Mondrian memory protection and a big address space). The disadvantage is that every thread can access every block of memory, so the potential number of interactions grows exponentially with the number of threads.
+
+This is why people using languages like Java tend to create more threads than people using C. There are no pointers and (more or less) no global variables in Java, so it is easier to reduce the number of potential interactions. People using languages like Erlang, which don't support aliasing of mutable objects between threads, can easily create tens of thousands of threads, because they do not have to worry about potential interactions between them except for the very few points that they explicitly created.
+
+With threaded programming, the primitives you typically use for synchronization are things like mutual exclusion locks (mutexes) and condition variables. With the task-based parallelism model, you often don't need any of these. If you have tasks that must be executed serially relative to each other, you can put them into the same queue. Often, however, you do need tasks to rendezvous at some point.
+
+As a simple example, consider a media player that decodes the audio and video frames concurrently. GCD provides dispatch groups as a trivial way of implementing this. In this example, you would create a new dispatch group for each video frame, and then associate all of the relevant audio frames with it. You would then add blocks decoding the audio and video frames to two separate queues with the same priority. GCD would then select the optimum number of threads to run these on and begin scheduling them. You would then use the dispatch_group_notify() function to submit the block that handled displaying the frame and playing the audio to another queue. This one would then not be added to a work queue until the other blocks had all completed.
+
+The nice thing about this model is that you are defining relationships between tasks (for example, this task runs when all of these have finished), rather than locking specific resources. Whether this is a good fit for your application depends on your design.
+
+There's been a lot of research in the last decade into optimizing concurrency in Java VMs. In Java, it is possible for the VM, using the same techniques it uses for accurate garbage collection, to be able to tell exactly which threads have access to a specific lock. If all of the Java threads that hold references to a lock are running on the same OS thread, then the JVM can remove expensive lock operations and replace them by setting a simple flag indicating that the other threads should not be scheduled, or replacing their calls to the synchronization primitives with ones that aren't really thread-safe. These tricks are not available to POSIX mutexes, because it is not possible for the pthread library to know which threads hold references to a given mutex. That is not the case with the implicit locking used by GCD. It knows exactly which threads hold references to which queues, and so can dynamically remove locks if they are not needed.
+
+
+Addition or Replacement?
+
+You can use small bits of GCD in existing applications very easily. The dispatch_async() function lets you add a block to an existing work queue (including one of the ones create by default) to run in the background. This is a cheap alternative to spawning a worker thread, and because it's so cheap you may consider doing it in some places where you were previously working synchronously.
+
+You can also use GCD from top to bottom in new code. Cocoa already uses it for handling the run loop in 10.6, and you can do the same thing if you want to write event-driven code. You'd typically write this code on OS X by having a loop that called kevent() and then handled these events. With GCD, you can use libdispatch for this event handling, putting all of your event handles in separate functions (or blocks) and just registering them with the event sources and queues when the program starts.
+
+GCD is probably overhyped, but that doesn't mean that it's not a nice addition to OS X, and now FreeBSD, development. It doesn't remove all of the difficulties of writing multithreaded code, but it does implement a lot of things that you'd probably want to implement yourself if it didn't exist.

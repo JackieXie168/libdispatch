@@ -1,0 +1,351 @@
+/**
+@page tutorial Getting Started
+@author Marius Zwicker / MLBA
+
+@section tut_intro Introduction
+
+This page will give you a short introduction concerning the concepts enforced throughout XDispatch and also help you getting started by first integrating libxdispatch into your project and writing the first lines of code afterwards. libxdispatch aims to provide an environment within which you can write parallelized code using the concepts of Grand Central Dispatch while keeping cross-platfrom compatibility and thus leaves it up to you, which operating systems you intend to target.
+
+@section tut_conf Configuring your environment
+
+The quickest way for getting started is obtaining a binary suitable for your development environment by going to the <a href="http://opensource.mlba-team.de/xdispatch/files">download section</a>. There you can find binaries for Linux, Windows and Mac OS X. Download the appropriate archive and install it on your system. 
+
+@subsection tut_conf_mac Mac OS X
+
+On Mac OS you will only have to execute the provided package installer. It will automatically copy xdispatch.framework and (if selected) QtDispatch.framework to the '/Library' directory. Afterwards you can use the libraries by including one of the headers
+
+@code
+#include <dispatch/dispatch.h>
+#include <xdispatch/dispatch>
+@endcode
+
+As with any other framework you will need to link your executable against the framework, so either pass '-framework xdispatch' when invoking gcc or configure your IDE to link against the xdispatch framework.
+
+@remarks As Grand Central Dispatch is an operating system component on Mac OS you will NOT have to link against libdispatch by hand. This will happen completely automatically.
+
+@subsection tut_conf_win Windows
+
+Extract the archive and copy it to some place on the disk. The provided archives contain three directories:
+<ul>
+    <li><i>include</i> - Location of the header files</li>
+    <li><i>lib</i> - Location of the lib files you will have to link against</li>
+    <li><i>bin</i> - Location of the dll files.</li>
+</ul>
+To use xdispatch, make sure the three directories listed above are listed in the INCLUDE, LIB and PATH (for the bin directory) environment variables. When using Visual Studio you might also want to change the include and linker directories within your project configuration. Afterwards you can use the libraries by including one of the headers
+
+@code
+#include <dispatch/dispatch.h>
+#include <xdispatch/dispatch>
+@endcode
+
+Configure your project to link against the xdispatch and dispatch libs.
+
+@subsection tut_conf_linux Linux
+
+The recommended way on Linux is to use the provided packages by subscribing the <a href="https://launchpad.net/~mlba-team/+archive/stable">PPA on Launchpad</a>:
+@code
+sudo apt-add-repository ppa:mlba_team/stable
+sudo apt-get update
+sudo apt-get install libxdispatch-dev libdispatch-dev
+@endcode
+
+Packages for debian and RPM packages for openSUSE & Co will be released in the future.
+
+In the meantime when not using Ubuntu, download the provided binary tarball according to your architecture and extract the headers and libraries to their corresponding places. Afterwards you can use the libraries by including one of the headers
+
+@code
+#include <dispatch/dispatch.h>
+#include <xdispatch/dispatch>
+@endcode
+
+As with any other shared library you will need to link your executable against them, so either pass '-lxdispatch -ldispatch' when invoking gcc or configure your IDE to link against the xdispatch framework.
+
+@remarks When using clang and lambdas, you will also have to link against the <a href="http://mackyle.github.com/blocksruntime/">BlocksRuntime</a>. It will be installed as a depedency on Ubuntu by default and is included in the tarball for all other Linux distributions. You will have to call clang with the parameters '-lxdispatch -ldispatch -lBlocksRuntime -fblocks'.
+
+@section tut_first First Steps
+
+Using libXDispatch within your source code is pretty straight forward as all you need to do is to include the headers within your source files - that's it.
+
+@code
+#include <xdispatch/dispatch>
+@endcode
+
+All functions are located in the xdispatch namespace. In the following I will demonstrate some use cases occuring when trying to parallelize the code. I will assume that your are either using gcc-4.5+, Visual Studio 2010 or clang as your compiler as enables us to utilize lambdas. For those not being able to use a "modern" compiler, please have a look at \ref tut_first_operations.
+
+\subsection tut_first_lambdas Parallel code using lambdas
+
+The most obvious use case is that you want to move some heavy calculation work off the main thread and into a background worker. Now without using libXDispatch, you'd probably be writing something similar to this:
+
+@code
+#include <pthread.h>
+#include <iostream>
+
+// declared somewhere else
+class SomeData {
+	bool finished;
+	pthread_mutex_t lock;
+ ...
+};
+
+/*
+ The worker function doing all the stuff
+ */
+ void* do_work(void* dt){
+ 	SomeData* data = (SomeData*)dt;
+ 	
+ 	// execute the heavy code
+ 	do_calculations(data);
+ 	
+ 	// notify the main thread we are finished
+ 	pthread_mutex_lock(&data->lock);
+ 	data->finished = true;
+ 	pthread_mutex_unlock(%data->lock);
+ }
+ 
+/*
+ This function is getting called
+ from your main thread also powering
+ the user interface
+ */
+void some_function(){
+
+	SomeData* sd = new SomeData();
+	fill_data(sd);
+
+	pthread_t worker;
+	
+	
+	if(pthread_create(&worker, NULL, do_work, NULL, (void*)sd)){
+		std::cerr << "Failed to create worker thread" << std::endl;
+		return;
+	}
+	
+	pthread_mutex_lock(&sd->lock);
+	while(!sd->finished){
+		pthread_mutex_unlock(&sd->lock);
+		
+		// process all events on the main thread
+		process_events();
+		
+		pthread_mutex_lock(&sd->lock);
+	}
+	
+	// ok, now the worker has finished, show the results within the gui
+	show_calc_results(sd);
+	delete sd;
+}
+@endcode
+
+So this is an example using pthreads. When writing for windows as well, we'd probably need to write another version using WindowsThreads or need to use a
+library such as OpenThreads or boost::threads. When using libXDispatch, we can
+express this code much more effectively - and still maintain cross platform compatibility:
+
+@code
+#include <xdispatch/dispatch>
+
+// declared somewhere else
+class SomeData {
+ ...
+};
+ 
+/*
+ This function is getting called
+ from your main thread also powering
+ the user interface
+ */
+void some_function(){
+
+	SomeData* sd = new SomeData();
+	fill_data(sd);
+	
+	xdispatch::global_queue().async(${
+	
+		// execute the heavy code
+		do_calulations(sd);
+		
+		// notify the gui that we are finished
+		xdispatch::main_queue().async(${
+			show_calc_results(sd);
+			delete sd;
+		});
+	
+	});
+}
+@endcode
+
+There's no need for manual thread creation and so on. Also note, that we can use all variables declared within <i>some_function()</i> within our lambda code <i>${ .. }</i>. It's just as easy when you want to parallelize a loop. Let's assume the following piece of code (Please note this is still a very simple calculation):
+
+@code
+#include <vector>
+#include <cmath>
+
+// declared somewhere else
+class SomeData {
+ ...
+ std::vector<double> a;
+ std::vector<double> b;
+ std::vector<double> c;
+ std::vector<double> results; 
+};
+
+void do_calculations(SomeData* sd){
+	
+	// our output will go in here
+	sd->results = std::vector<double>(sd->a.size());
+	
+	// the calculation - running on one thread only
+	for(unsigned int i = 0; i < a.size(); i++){
+		sd->results[i] = 0;
+		for(unsigned int j = 0; j < b.size(); j++){
+			for(unsigned int z = 0; z < c.size(); z++){
+				sd->results[i] += std::pow(sd->b[j], sd->a[i]) * std::sin(sd->c[z]);
+			}
+		}
+	}
+}
+@endcode
+
+Now to parallelize this piece of code using libXDispatch you can simply write:
+
+@code
+#include <vector>
+#include <cmath>
+#include <xdispatch/dispatch>
+
+// declared somewhere else
+class SomeData {
+ ...
+ std::vector<double> a;
+ std::vector<double> b;
+ std::vector<double> c;
+ std::vector<double> results; 
+};
+
+void do_calculations(SomeData* sd){
+	
+	// our output will go in here
+	sd->results = std::vector<double>(sd->a.size());
+	
+	// the calculation - running on multiple threads
+	xdispatch::global_queue().apply($(size_t i){
+		sd->results[i] = 0;
+		for(unsigned int j = 0; j < b.size(); j++){
+			for(unsigned int z = 0; z < c.size(); z++){
+				sd->results[i] += std::pow(sd->b[j], sd->a[i]) * std::sin(sd->c[z]);
+			}
+		}
+	}, a.size());
+}
+@endcode
+
+libXDispatch is also providing mechanisms for making some piece of code perfectly threadsafe. So again assume the following piece of code:
+
+@code
+#include <pthread.h>
+
+static pthread_mutex_t lock = PTHREAD_MUTEX_INITIALIZER;
+
+/*
+ So this function is called from several threads
+ */
+void worker(){
+
+	// some work
+	...
+	
+	pthread_mutex_lock(&lock);
+		// do some critical work	
+		if(already_done){ // we might have finished here
+			pthread_mutex_unlock(&lock);
+			return;
+		}
+		// do some other critical work
+	pthread_mutex_lock(&lock);
+	
+	// some other work
+	...
+}
+@endcode
+
+We will have to make sure the mutex is cleanly unlocked whenever leaving the critical section. And what happens if an exception is thrown from within that we do not catch? This might result in a deadlock. All this can be easily resolved by using the following expression:
+
+@code
+#include <xdispatch/dispatch>
+
+/*
+ So this function is called from several threads
+ */
+void worker(){
+
+	// some work
+	...
+	
+	synchronized {
+		// do some critical work	
+		if(already_done) // we might have finished here
+			return;
+		// do some other critical work
+	}
+	
+	// some other work
+	...
+}
+@endcode
+
+No need to handle the locking by yourself, all is done magically - and it is ensured that the lock will be automatically cleared whenever you leave the section marked by the brackets. For further details about this, please see the documentation on the xdispatch::synclock. Please note that his functionality is available on compilers without lambda support as well.
+
+\subsection tut_first_operations Parallel code using xdispatch::operations
+
+All the examples shown above can also be written without using lambdas. So for example the parallel loop can also be expressed using an xdispatch::iteration_operation:
+
+@code
+#include <vector>
+#include <cmath>
+#include <xdispatch/dispatch>
+
+// declared somewhere else
+class SomeData {
+ ...
+ std::vector<double> a;
+ std::vector<double> b;
+ std::vector<double> c;
+ std::vector<double> results; 
+};
+
+class InnerCalculation : public xdispatch::iteration_operation {
+	
+	SomeData* sd;
+	
+public:
+	InnerCalculation(SomeData* d) : sd(d) {}
+	
+	void operator()(size_t i){
+		sd->results[i] = 0;
+		for(unsigned int j = 0; j < b.size(); j++){
+			for(unsigned int z = 0; z < c.size(); z++){
+				sd->results[i] += std::pow(sd->b[j], sd->a[i]) * std::sin(sd->c[z]);
+			}
+		}	
+	}
+
+}
+
+void do_calculations(SomeData* sd){
+	
+	// our output will go in here
+	sd->results = std::vector<double>(sd->a.size());
+	
+	// the calculation - running on multiple threads
+	xdispatch::global_queue().apply(new InnerCalculation(sd), a.size());
+}
+@endcode
+
+There is no need to worry about memory leaks - xdispatch will automatically delete the iteration_operation once it has finished execution.
+
+@section tut_conc Concepts
+
+The examples above showed only some of the functionality and power of libXDispatch. Of course there also is a plean C interface and Qt integration provided within QtDispatch. For further exploration, we recommend browsing the API documentation and having a look at the various unittests.
+
+There is also a lot more concepts to explore. For example you could create your own queues and not only use the automatically provided global queues. For understanding the idea of serial and concurrent queues and the usage of setting a target for a queue, we recommend to read the document <a href="http://opensource.mlba-team.de/xdispatch/GrandCentral_TB_brief_20090608.pdf">"Apple Technical Brief on Grand Central Dispatch"</a> and have a look at <a href="http://developer.apple.com/library/mac/#documentation/General/Conceptual/ConcurrencyProgrammingGuide/Introduction/Introduction.html#//apple_ref/doc/uid/TP40008091">Apple's Concurrency Programming Guide</a>
+
+*/
